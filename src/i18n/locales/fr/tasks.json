@@ -205,6 +205,7 @@
     "clickToChangePriority": "Cliquer pour modifier la priorité",
     "done": "TERMINÉ",
     "late": "RETARD",
+    "blocked": "BLOQUÉ",
     "comments": "Commentaires ({{count}})",
     "open": "Ouvrir",
     "removeTag": "Retirer l'étiquette",
