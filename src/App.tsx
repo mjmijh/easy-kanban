@@ -1902,10 +1902,24 @@ function AppContent() {
         columns: {}
       };
 
-      // Create the board - backend automatically creates default columns
+      // Create the board first
       await createBoard(newBoard);
 
-      // Refresh board data to get the complete structure (including columns created by backend)
+      // Create default columns for the new board
+      const columnPromises = DEFAULT_COLUMNS.map(async (col, index) => {
+        const column: Column = {
+          id: `${col.id}-${boardId}`,
+          title: col.title,
+          tasks: [],
+          boardId: boardId,
+          position: index
+        };
+        return createColumn(column);
+      });
+
+      await Promise.all(columnPromises);
+
+      // Refresh board data to get the complete structure
       await refreshBoardData();
       
 
@@ -2338,6 +2352,82 @@ function AppContent() {
         await updateTask(task);
         await fetchQueryLogs();
       });
+
+      // --- Auto-shift children when dueDate changes ---
+      const previousTask = Object.values(previousColumns)
+        .flatMap(col => col.tasks)
+        .find(t => t.id === task.id);
+
+      if (previousTask && previousTask.dueDate !== task.dueDate && task.dueDate) {
+        const prevEnd = new Date(previousTask.dueDate);
+        const newEnd = new Date(task.dueDate);
+        prevEnd.setHours(0, 0, 0, 0);
+        newEnd.setHours(0, 0, 0, 0);
+        const daysDelta = Math.round((newEnd.getTime() - prevEnd.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysDelta !== 0) {
+          // Recursively collect all children to shift
+          const collectChildren = (parentId: string, visited = new Set<string>()): string[] => {
+            if (visited.has(parentId)) return [];
+            visited.add(parentId);
+            const directChildren = taskLinking.boardRelationships
+              .filter((rel: any) => rel.relationship === 'parent' && rel.task_id === parentId)
+              .map((rel: any) => rel.to_task_id);
+            return [
+              ...directChildren,
+              ...directChildren.flatMap(childId => collectChildren(childId, visited))
+            ];
+          };
+
+          const childIds = collectChildren(task.id);
+
+          if (childIds.length > 0) {
+            const shiftDate = (dateStr: string | null | undefined, delta: number): string => {
+              if (!dateStr) return dateStr || '';
+              const d = new Date(dateStr);
+              d.setDate(d.getDate() + delta);
+              return d.toISOString().split('T')[0];
+            };
+
+            // Shift each child, preserving duration
+            for (const childId of childIds) {
+              const childTask = Object.values(columns)
+                .flatMap(col => col.tasks)
+                .find(t => t.id === childId);
+              if (!childTask) continue;
+
+              const newStartDate = shiftDate(childTask.startDate, daysDelta);
+              const newDueDate = shiftDate(childTask.dueDate, daysDelta);
+              const updatedChild = { ...childTask, startDate: newStartDate, dueDate: newDueDate };
+
+              // Optimistic UI update
+              setColumns(prev => {
+                const col = prev[childTask.columnId];
+                if (!col) return prev;
+                return {
+                  ...prev,
+                  [childTask.columnId]: {
+                    ...col,
+                    tasks: col.tasks.map(t => t.id === childId ? updatedChild : t)
+                  }
+                };
+              });
+
+              // Persist to server
+              await updateTask(updatedChild);
+            }
+
+            const direction = daysDelta > 0 ? 'forward' : 'backward';
+            const absDays = Math.abs(daysDelta);
+            toast.info(
+              'Dependent tasks shifted',
+              `${childIds.length} dependent task${childIds.length > 1 ? 's' : ''} shifted ${direction} by ${absDays} day${absDays > 1 ? 's' : ''}`
+            );
+          }
+        }
+      }
+      // --- End auto-shift ---
+
     } catch (error: any) {
       console.error('❌ [App] Failed to update task:', error);
       
@@ -2352,7 +2442,7 @@ function AppContent() {
         setSelectedTask(previousSelectedTask);
       }
     }
-  }, [withLoading, fetchQueryLogs, columns, selectedTask]);
+  }, [withLoading, fetchQueryLogs, columns, selectedTask, taskLinking.boardRelationships]);
 
   const handleCopyTask = async (task: Task) => {
     // Find the original task's position in the sorted list
