@@ -2451,6 +2451,77 @@ function AppContent() {
         await updateTask(task);
         await fetchQueryLogs();
       });
+
+      // --- Auto-shift children when dueDate changes ---
+      const previousTask = Object.values(previousColumns)
+        .flatMap(col => col.tasks)
+        .find(t => t.id === task.id);
+
+      if (previousTask && previousTask.dueDate !== task.dueDate && task.dueDate) {
+        const prevEnd = new Date(previousTask.dueDate);
+        const newEnd = new Date(task.dueDate);
+        prevEnd.setHours(0, 0, 0, 0);
+        newEnd.setHours(0, 0, 0, 0);
+        const daysDelta = Math.round((newEnd.getTime() - prevEnd.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysDelta !== 0) {
+          const collectChildren = (parentId: string, visited = new Set<string>()): string[] => {
+            if (visited.has(parentId)) return [];
+            visited.add(parentId);
+            const directChildren = taskLinking.boardRelationships
+              .filter((rel: any) => rel.relationship === 'parent' && rel.task_id === parentId)
+              .map((rel: any) => rel.to_task_id);
+            return [
+              ...directChildren,
+              ...directChildren.flatMap(childId => collectChildren(childId, visited))
+            ];
+          };
+
+          const childIds = collectChildren(task.id);
+
+          if (childIds.length > 0) {
+            const shiftDate = (dateStr: string | null | undefined, delta: number): string => {
+              if (!dateStr) return dateStr || '';
+              const d = new Date(dateStr);
+              d.setDate(d.getDate() + delta);
+              return d.toISOString().split('T')[0];
+            };
+
+            for (const childId of childIds) {
+              const childTask = Object.values(columns)
+                .flatMap(col => col.tasks)
+                .find(t => t.id === childId);
+              if (!childTask) continue;
+
+              const newStartDate = shiftDate(childTask.startDate, daysDelta);
+              const newDueDate = shiftDate(childTask.dueDate, daysDelta);
+              const updatedChild = { ...childTask, startDate: newStartDate, dueDate: newDueDate };
+
+              setColumns(prev => {
+                const col = prev[childTask.columnId];
+                if (!col) return prev;
+                return {
+                  ...prev,
+                  [childTask.columnId]: {
+                    ...col,
+                    tasks: col.tasks.map(t => t.id === childId ? updatedChild : t)
+                  }
+                };
+              });
+
+              await updateTask(updatedChild);
+            }
+
+            const direction = daysDelta > 0 ? 'forward' : 'backward';
+            const absDays = Math.abs(daysDelta);
+            toast.info(
+              'Dependent tasks shifted',
+              `${childIds.length} dependent task${childIds.length > 1 ? 's' : ''} shifted ${direction} by ${absDays} day${absDays > 1 ? 's' : ''}`
+            );
+          }
+        }
+      }
+      // --- End auto-shift ---
     } catch (error: any) {
       console.error('❌ [App] Failed to update task:', error);
       
