@@ -205,6 +205,7 @@
     "clickToChangePriority": "Click to change priority",
     "done": "DONE",
     "late": "LATE",
+    "blocked": "BLOCKED",
     "comments": "Comments ({{count}})",
     "open": "Open",
     "removeTag": "Remove Tag",

@@ -11,6 +11,8 @@ interface GanttTask {
   priority: string;
   columnPosition: number;
   taskPosition: number;
+  isColumnFinished?: boolean;
+  isColumnArchived?: boolean;
 }
 
 interface TaskRelationship {
@@ -206,17 +208,36 @@ const TaskDependencyArrows: React.FC<TaskDependencyArrowsProps> = ({
           const fromPosWithId = { ...fromPos, taskId: fromTask.id };
           const toPosWithId = { ...toPos, taskId: toTask.id };
 
+          // Parent is blocking the child if:
+          // 1. Parent is NOT in a finished/archived column, AND
+          // 2. Child starts before or during the parent (childStart <= parentEnd)
+          const isParentDelayed = (() => {
+            if (fromTask.isColumnFinished || fromTask.isColumnArchived) return false;
+            if (!toTask.startDate) return false;
+            // If parent has no endDate, child is always blocked (parent not finished)
+            if (!fromTask.endDate) return true;
+            const childStart = new Date(toTask.startDate);
+            childStart.setHours(0, 0, 0, 0);
+            const parentEnd = new Date(fromTask.endDate);
+            parentEnd.setHours(0, 0, 0, 0);
+            // Blocked if child starts before or on the same day as parent ends
+            return childStart <= parentEnd;
+          })();
+
+
           // Only recalculate path if positions have actually changed
           const positionsChanged = !existingArrow || 
             existingArrow.fromPosition.x !== fromPosWithId.x ||
             existingArrow.fromPosition.y !== fromPosWithId.y ||
             existingArrow.fromPosition.width !== fromPosWithId.width ||
             existingArrow.toPosition.x !== toPosWithId.x ||
-            existingArrow.toPosition.y !== toPosWithId.y;
+            existingArrow.toPosition.y !== toPosWithId.y ||
+            (existingArrow as any).isBlocked !== isParentDelayed;
 
           if (positionsChanged) {
             const path = generateArrowPath(fromPosWithId, toPosWithId);
-            const color = '#3B82F6'; // Blue for parent relationships
+            // Red+bold for delayed parent, blue for on-track
+            const color = isParentDelayed ? '#EF4444' : '#3B82F6';
 
             const arrow = {
               id: arrowId,
@@ -227,7 +248,8 @@ const TaskDependencyArrows: React.FC<TaskDependencyArrowsProps> = ({
               fromPosition: fromPosWithId,
               toPosition: toPosWithId,
               path,
-              color
+              color,
+              isBlocked: isParentDelayed
             };
 
             newArrows.push(arrow);
@@ -286,6 +308,7 @@ const TaskDependencyArrows: React.FC<TaskDependencyArrowsProps> = ({
       >
       {/* Define arrow markers for each color */}
       <ArrowMarker id="arrow-parent" color="#3B82F6" />
+      <ArrowMarker id="arrow-blocked" color="#EF4444" />
       <ArrowMarker id="arrow-related" color="#6B7280" />
       <ArrowMarker id="arrow-child" color="#10B981" />
 
@@ -301,10 +324,10 @@ const TaskDependencyArrows: React.FC<TaskDependencyArrowsProps> = ({
             key={`arrow-path-${arrow.id}-${arrow.path.slice(0,20)}`}
             d={arrow.path}
             stroke={arrow.color}
-            strokeWidth={3}
-            strokeOpacity={0.5}
+            strokeWidth={(arrow as any).isBlocked ? 4 : 3}
+            strokeOpacity={(arrow as any).isBlocked ? 0.9 : 0.5}
             fill="none"
-            markerEnd={`url(#arrow-${arrow.relationship})`}
+            markerEnd={(arrow as any).isBlocked ? `url(#arrow-blocked)` : `url(#arrow-${arrow.relationship})`}
           />
           
           {/* Invisible wider path for easier hovering */}
