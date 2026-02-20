@@ -193,7 +193,7 @@ router.get('/:boardId/columns', authenticateToken, async (req, res) => {
 router.get('/default-columns', authenticateToken, async (req, res) => {
   try {
     const db = getRequestDatabase(req);
-    const defaultColumns = getDefaultBoardColumns(db);
+    const defaultColumns = await getDefaultBoardColumns(db);
     res.json(defaultColumns);
   } catch (error) {
     console.error('Error fetching default columns:', error);
@@ -226,7 +226,7 @@ router.post('/', authenticateToken, checkBoardLimit, async (req, res) => {
     await wrapQuery(db.prepare('INSERT INTO boards (id, title, project, position) VALUES (?, ?, ?, ?)'), 'INSERT').run(id, title, projectIdentifier, position + 1);
     
     // Automatically create default columns based on APP_LANGUAGE
-    const defaultColumns = getDefaultBoardColumns(db);
+    const defaultColumns = await getDefaultBoardColumns(db);
     const columnStmt = db.prepare('INSERT INTO columns (id, title, boardId, position, is_finished, is_archived) VALUES (?, ?, ?, ?, ?, ?)');
     
     const tenantId = getTenantId(req);

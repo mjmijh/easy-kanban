@@ -1902,24 +1902,10 @@ function AppContent() {
         columns: {}
       };
 
-      // Create the board first
+      // Create the board - backend automatically creates default columns
       await createBoard(newBoard);
 
-      // Create default columns for the new board
-      const columnPromises = DEFAULT_COLUMNS.map(async (col, index) => {
-        const column: Column = {
-          id: `${col.id}-${boardId}`,
-          title: col.title,
-          tasks: [],
-          boardId: boardId,
-          position: index
-        };
-        return createColumn(column);
-      });
-
-      await Promise.all(columnPromises);
-
-      // Refresh board data to get the complete structure
+      // Refresh board data to get the complete structure (including columns created by backend)
       await refreshBoardData();
       
 
