@@ -419,7 +419,7 @@ const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-3">
           <a 
             href={siteSettings.SITE_URL || '#'} 
-            {...(siteSettings.SITE_OPENS_NEW_TAB === undefined || siteSettings.SITE_OPENS_NEW_TAB === 'true' 
+            {...(siteSettings.SITE_OPENS_NEW_TAB === 'true' 
               ? { target: '_blank', rel: 'noopener noreferrer' } 
               : {})}
             className="text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
@@ -696,7 +696,7 @@ const Header: React.FC<HeaderProps> = ({
           
           <a
             href="https://github.com/drenlia/easy-kanban"
-            {...(siteSettings.SITE_OPENS_NEW_TAB === undefined || siteSettings.SITE_OPENS_NEW_TAB === 'true' 
+            {...(siteSettings.SITE_OPENS_NEW_TAB === 'true' 
               ? { target: '_blank', rel: 'noopener noreferrer' } 
               : {})}
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
