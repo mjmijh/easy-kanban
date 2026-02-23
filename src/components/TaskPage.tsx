@@ -1762,7 +1762,8 @@ export default function TaskPage({
                   <span className="text-gray-600">{t('taskPage.taskId')}:</span>
                   <span className="font-mono text-gray-900">{taskId}</span>
                 </div>
-                {/* Board / Project selector */}
+                {/* Board / Project selector — only in extended mode */}
+                {projects.length > 0 && (
                 <div className="flex justify-between items-start">
                   <span className="text-gray-600 mt-1">Board:</span>
                   <div className="relative text-right board-selector-container">
@@ -1826,14 +1827,15 @@ export default function TaskPage({
                     )}
                   </div>
                 </div>
-                {getProjectIdentifier() && (
+                )}
+                {getProjectIdentifier() && projects.length > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">Project:</span>
                     <span className="font-mono text-gray-900">{getProjectIdentifier()}</span>
                   </div>
                 )}
-                {/* Current column info */}
-                {boardColumns.length > 0 && (
+                {/* Current column info — only in extended mode */}
+                {boardColumns.length > 0 && projects.length > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">Column:</span>
                     <span className="text-gray-900 text-sm">
