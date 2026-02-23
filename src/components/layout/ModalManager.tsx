@@ -30,6 +30,7 @@ interface ModalManagerProps {
   onAccountDeleted?: () => void;
   siteSettings?: { [key: string]: string };
   boards?: any[];
+  projects?: any[];
 }
 
 const ModalManager: React.FC<ModalManagerProps> = ({
@@ -50,6 +51,7 @@ const ModalManager: React.FC<ModalManagerProps> = ({
   onAccountDeleted,
   siteSettings,
   boards,
+  projects,
 }) => {
   return (
     <>
@@ -64,6 +66,7 @@ const ModalManager: React.FC<ModalManagerProps> = ({
             onUpdate={onTaskUpdate}
             siteSettings={siteSettings}
             boards={boards}
+            projects={projects}
             scrollToComments={taskDetailsOptions?.scrollToComments}
           />
         </Suspense>

@@ -113,7 +113,18 @@ function AppContent() {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [boards, setBoards] = useState<Board[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => {
+    return localStorage.getItem('selectedProjectId') || null;
+  });
+
+  // Persist selectedProjectId to localStorage
+  useEffect(() => {
+    if (selectedProjectId) {
+      localStorage.setItem('selectedProjectId', selectedProjectId);
+    } else {
+      localStorage.removeItem('selectedProjectId');
+    }
+  }, [selectedProjectId]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNewBoardModal, setShowNewBoardModal] = useState(false);
   const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
@@ -1576,6 +1587,10 @@ function AppContent() {
         if (route.mainRoute === 'kanban' && route.subRoute && boards.length > 0) {
           const board = boards.find(b => b.id === route.subRoute);
           setSelectedBoard(board ? board.id : null);
+          // Sync project selection with the board being navigated to
+          if (board && board.project_group_id) {
+            setSelectedProjectId(board.project_group_id);
+          }
         }
         
       } else if (route.isBoardId && boards.length > 0) {
@@ -2020,6 +2035,7 @@ function AppContent() {
 
       // Refresh board data to get the complete structure
       await refreshBoardData();
+      await fetchProjects();
       
       await fetchQueryLogs();
       
@@ -3714,6 +3730,7 @@ function AppContent() {
           }}
           siteSettings={siteSettings}
           boards={boards}
+          projects={projects}
         />
       </Suspense>
 
