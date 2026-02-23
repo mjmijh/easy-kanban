@@ -123,6 +123,25 @@ export async function getTranslator(db) {
  * @returns {Array} Array of column objects with id and title
  */
 export async function getDefaultBoardColumns(db) {
+  // Check for admin-configured default columns
+  // If the setting row exists (even if empty), use it exclusively — admin is in control
+  try {
+    const setting = db.prepare('SELECT value FROM settings WHERE key = ?').get('DEFAULT_BOARD_COLUMNS');
+    if (setting !== undefined && setting !== null) {
+      // Setting row exists — use it (may be empty array meaning no columns)
+      const parsed = setting.value ? JSON.parse(setting.value) : [];
+      if (Array.isArray(parsed)) {
+        return parsed.map((title, index) => ({
+          id: `col${index}`,
+          title: String(title).trim()
+        }));
+      }
+    }
+  } catch (e) {
+    // Fall through to translation-based defaults
+  }
+
+  // No setting in DB yet — fall back to translation-based defaults
   const lang = await getAppLanguage(db);
   const translations = loadTranslations(lang);
   const columns = translations.boardColumns;
