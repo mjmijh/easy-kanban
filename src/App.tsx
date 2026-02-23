@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { TeamMember, Task, Column, Columns, Board, PriorityOption, Tag, QueryLog, DragPreview } from './types';
 import { SavedFilterView, getSavedFilterView } from './api';
+import { Project } from './types';
+import NewBoardModal from './components/NewBoardModal';
 import DebugPanel from './components/DebugPanel';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { TourProvider } from './contexts/TourContext';
@@ -110,6 +112,10 @@ function AppContent() {
   const { t } = useTranslation('tasks');
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [boards, setBoards] = useState<Board[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showNewBoardModal, setShowNewBoardModal] = useState(false);
   const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
   const selectedBoardRef = useRef<string | null>(null); // Initialize as null, will be set after auth
   
@@ -1671,6 +1677,7 @@ function AppContent() {
           // console.log(`📋 Loaded ${loadedMembers.length} members with includeSystem=${includeSystem}`);
           setMembers(loadedMembers);
           setBoards(loadedBoards);
+          fetchProjects();
           setAvailablePriorities(loadedPriorities || []);
           setAvailableTags(loadedTags || []);
           setAvailableSprints(loadedSprints || []);
@@ -1836,6 +1843,7 @@ function AppContent() {
     try {
       const loadedBoards = await getBoards();
       setBoards(loadedBoards);
+      fetchProjects();
       
       if (loadedBoards.length > 0) {
         // Check if the selected board still exists
@@ -1890,7 +1898,93 @@ function AppContent() {
 
 
 
+  // ─── Project handlers ───────────────────────────────────────────────────────
+
+  const fetchProjects = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch('/api/projects', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch projects:', e);
+    }
+  };
+
+  const handleCreateProject = async (title: string, color: string): Promise<Project | void> => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, color })
+      });
+      if (res.ok) {
+        const created = await res.json();
+        await fetchProjects();
+        return created as Project;
+      }
+    } catch (e) {
+      console.error('Failed to create project:', e);
+    }
+  };
+
+  const handleUpdateProject = async (id: string, title: string, color: string) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`/api/projects/${id}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, color })
+      });
+      if (res.ok) await fetchProjects();
+    } catch (e) {
+      console.error('Failed to update project:', e);
+    }
+  };
+
+  const handleDeleteProject = async (id: string) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      await fetch(`/api/projects/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      await fetchProjects();
+      await refreshBoardData();
+      if (selectedProjectId === id) setSelectedProjectId(null);
+    } catch (e) {
+      console.error('Failed to delete project:', e);
+    }
+  };
+
+  const handleAssignBoardToProject = async (boardId: string, projectId: string | null) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      await fetch(`/api/projects/boards/${boardId}/project`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_group_id: projectId })
+      });
+      await refreshBoardData();
+    } catch (e) {
+      console.error('Failed to assign board to project:', e);
+    }
+  };
+
+  // ─── End project handlers ────────────────────────────────────────────────────
+
   const handleAddBoard = async () => {
+    // Show modal instead of auto-creating
+    setShowNewBoardModal(true);
+  };
+
+  const handleAddBoardWithProject = async (boardTitle: string, projectGroupId: string | null) => {
+    setShowNewBoardModal(false);
     try {
       // Pause polling to prevent race conditions
       setBoardCreationPause(true);
@@ -1898,12 +1992,13 @@ function AppContent() {
       const boardId = generateUUID();
       const newBoard: Board = {
         id: boardId,
-        title: generateUniqueBoardName(boards),
-        columns: {}
+        title: boardTitle || generateUniqueBoardName(boards),
+        columns: {},
+        project_group_id: projectGroupId
       };
 
       // Create the board first
-      await createBoard(newBoard);
+      await createBoard({ ...newBoard, project_group_id: projectGroupId });
 
       // Create default columns for the new board
       const columnPromises = DEFAULT_COLUMNS.map(async (col, index) => {
@@ -3513,6 +3608,15 @@ function AppContent() {
         currentFilterView={taskFilters.currentFilterView}
         sharedFilterViews={taskFilters.sharedFilterViews}
         onFilterViewChange={taskFilters.handleFilterViewChange}
+        projects={projects}
+        selectedProjectId={selectedProjectId}
+        sidebarOpen={sidebarOpen}
+        onSelectProject={setSelectedProjectId}
+        onSidebarToggle={() => setSidebarOpen(v => !v)}
+        onCreateProject={handleCreateProject}
+        onUpdateProject={handleUpdateProject}
+        onDeleteProject={handleDeleteProject}
+        onAssignBoardToProject={handleAssignBoardToProject}
                     onSelectBoard={handleBoardSelection}
                     onAddBoard={handleAddBoard}
                     onEditBoard={handleEditBoard}
@@ -3669,6 +3773,17 @@ function AppContent() {
       />
       </div>
       
+      {/* New Board Modal */}
+      {showNewBoardModal && (
+        <NewBoardModal
+          projects={projects}
+          defaultProjectId={selectedProjectId}
+          defaultBoardName={generateUniqueBoardName(boards)}
+          onSubmit={handleAddBoardWithProject}
+          onCreateProject={handleCreateProject}
+          onClose={() => setShowNewBoardModal(false)}
+        />
+      )}
       {/* Toast Notifications */}
       <ToastContainer />
 

@@ -7,7 +7,36 @@ import { dbTransaction, dbExec, dbAll, dbRun, isProxyDatabase } from '../utils/d
 // that don't have them yet. Only migrations 11+ are defined here.
 
 const migrations = [
-  // Future migrations will be added here with version: 11, 12, etc.
+  {
+    version: 11,
+    name: 'add_projects_table',
+    description: 'Add projects table and project_group_id to boards for project grouping',
+    up: async (db) => {
+      const { dbExec } = await import('../utils/dbAsync.js');
+
+      // Create projects table
+      await dbExec(db, `
+        CREATE TABLE IF NOT EXISTS projects (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          color TEXT DEFAULT '#3B82F6',
+          position INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // Add project_group_id to boards (nullable - boards without project = ungrouped)
+      try {
+        await dbExec(db, `ALTER TABLE boards ADD COLUMN project_group_id TEXT REFERENCES projects(id) ON DELETE SET NULL;`);
+      } catch (e) {
+        // Column may already exist
+        if (!e.message.includes('duplicate column')) throw e;
+      }
+
+      console.log('✅ Migration 11: projects table and project_group_id column created');
+    }
+  }
 ];
 
 /**
