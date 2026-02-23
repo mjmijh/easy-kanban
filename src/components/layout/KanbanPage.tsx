@@ -660,6 +660,7 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
                 boards={boards}
                 siteSettings={siteSettings}
                 currentUser={currentUser}
+                onAddTask={onAddTask}
               />
             </div>
           ) : viewMode === 'gantt' ? (
