@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { X, FolderOpen, Plus, ArrowLeft } from 'lucide-react';
 import { Project } from '../types';
 

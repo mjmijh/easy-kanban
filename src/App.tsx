@@ -2017,19 +2017,7 @@ function AppContent() {
       // Create the board first
       await createBoard({ ...newBoard, project_group_id: projectGroupId });
 
-      // Create default columns for the new board
-      const columnPromises = DEFAULT_COLUMNS.map(async (col, index) => {
-        const column: Column = {
-          id: `${col.id}-${boardId}`,
-          title: col.title,
-          tasks: [],
-          boardId: boardId,
-          position: index
-        };
-        return createColumn(column);
-      });
-
-      await Promise.all(columnPromises);
+      // Default columns are created server-side (see server/routes/boards.js)
 
       // Set the new board as selected BEFORE refreshing so refreshBoardData loads its columns
       setSelectedBoard(boardId);
