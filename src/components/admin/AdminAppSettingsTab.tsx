@@ -560,6 +560,43 @@ const AdminAppSettingsTab: React.FC<AdminAppSettingsTabProps> = ({
           </div>
         </div>
 
+            {/* Project Features Toggle */}
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-start justify-between gap-6">
+                <div className="flex-1">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">Extended Mode — Project Features</label>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    When enabled, boards can be grouped into projects, tasks show their board and project in the detail view, and the project sidebar is visible.
+                    When disabled, the app shows a clean board-only interface (original behaviour).
+                  </p>
+                  {editingSettings.PROJECTS_ENABLED === '1' && (
+                    <p className="mt-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded px-2 py-1">
+                      ⚠️ Switching back to Simple Mode will hide project groupings but <strong>not delete any data</strong>. Everything reappears when you re-enable Extended Mode.
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const newVal = editingSettings.PROJECTS_ENABLED === '1' ? '0' : '1';
+                    onSettingsChange({ ...editingSettings, PROJECTS_ENABLED: newVal });
+                    if (onAutoSave) await onAutoSave('PROJECTS_ENABLED', newVal);
+                  }}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    editingSettings.PROJECTS_ENABLED === '1' ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-600'
+                  }`}
+                  role="switch"
+                  aria-checked={editingSettings.PROJECTS_ENABLED === '1'}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${
+                      editingSettings.PROJECTS_ENABLED === '1' ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
             {/* Action Buttons - Always show for manual save fields (position, width, height) */}
             <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 flex justify-end space-x-3">
               <button

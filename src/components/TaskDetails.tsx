@@ -1722,7 +1722,7 @@ export default function TaskDetails({ task, members, currentUser, onClose, onUpd
             </div>
 
             {/* Board selector */}
-            {boards && boards.length > 0 && (
+            {boards && boards.length > 0 && projects && projects.length > 0 && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Board</label>
                 <div className="relative board-selector-container">

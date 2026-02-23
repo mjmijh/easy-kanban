@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { TeamMember, Task, Column, Columns, Board, PriorityOption, Tag, QueryLog, DragPreview } from './types';
@@ -137,6 +137,8 @@ function AppContent() {
   const [columns, setColumns] = useState<Columns>({});
   // Use SettingsContext instead of local state
   const { systemSettings, siteSettings, refreshSettings: refreshContextSettings } = useSettings();
+  // Derived flag: true only when admin has explicitly enabled project features
+  const isProjectsEnabled = siteSettings?.PROJECTS_ENABLED === '1';
   const [kanbanColumnWidth, setKanbanColumnWidth] = useState<number>(300); // Default 300px
   
   // User Status for permission refresh
@@ -3626,15 +3628,15 @@ function AppContent() {
         currentFilterView={taskFilters.currentFilterView}
         sharedFilterViews={taskFilters.sharedFilterViews}
         onFilterViewChange={taskFilters.handleFilterViewChange}
-        projects={projects}
-        selectedProjectId={selectedProjectId}
-        sidebarOpen={sidebarOpen}
-        onSelectProject={setSelectedProjectId}
-        onSidebarToggle={() => setSidebarOpen(v => !v)}
-        onCreateProject={handleCreateProject}
-        onUpdateProject={handleUpdateProject}
-        onDeleteProject={handleDeleteProject}
-        onAssignBoardToProject={handleAssignBoardToProject}
+        projects={isProjectsEnabled ? projects : []}
+        selectedProjectId={isProjectsEnabled ? selectedProjectId : null}
+        sidebarOpen={isProjectsEnabled ? sidebarOpen : false}
+        onSelectProject={isProjectsEnabled ? setSelectedProjectId : undefined}
+        onSidebarToggle={isProjectsEnabled ? () => setSidebarOpen(v => !v) : undefined}
+        onCreateProject={isProjectsEnabled ? handleCreateProject : undefined}
+        onUpdateProject={isProjectsEnabled ? handleUpdateProject : undefined}
+        onDeleteProject={isProjectsEnabled ? handleDeleteProject : undefined}
+        onAssignBoardToProject={isProjectsEnabled ? handleAssignBoardToProject : undefined}
                     onSelectBoard={handleBoardSelection}
                     onAddBoard={handleAddBoard}
                     onEditBoard={handleEditBoard}
@@ -3732,7 +3734,7 @@ function AppContent() {
           }}
           siteSettings={siteSettings}
           boards={boards}
-          projects={projects}
+          projects={isProjectsEnabled ? projects : []}
         />
       </Suspense>
 
@@ -3795,8 +3797,8 @@ function AppContent() {
       {/* New Board Modal */}
       {showNewBoardModal && (
         <NewBoardModal
-          projects={projects}
-          defaultProjectId={selectedProjectId}
+          projects={isProjectsEnabled ? projects : []}
+          defaultProjectId={isProjectsEnabled ? selectedProjectId : null}
           defaultBoardName={generateUniqueBoardName(boards)}
           onSubmit={handleAddBoardWithProject}
           onCreateProject={handleCreateProject}
