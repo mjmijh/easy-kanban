@@ -19,6 +19,7 @@ import SearchInterface from '../SearchInterface';
 import KanbanColumn from '../Column';
 import TaskCard from '../TaskCard';
 import BoardTabs from '../BoardTabs';
+import ProjectSidebar from '../ProjectSidebar';
 import LoadingSpinner from '../LoadingSpinner';
 import ListView from '../ListView';
 import ColumnResizeHandle from '../ColumnResizeHandle';
@@ -87,6 +88,16 @@ interface KanbanPageProps {
   currentFilterView?: any; // SavedFilterView | null
   sharedFilterViews?: any[]; // SavedFilterView[]
   onFilterViewChange?: (view: any) => void; // (view: SavedFilterView | null) => void
+  // Project props
+  projects: any[];
+  selectedProjectId: string | null;
+  sidebarOpen: boolean;
+  onSelectProject: (id: string | null) => void;
+  onSidebarToggle: () => void;
+  onCreateProject: (title: string, color: string) => Promise<void>;
+  onUpdateProject: (id: string, title: string, color: string) => Promise<void>;
+  onDeleteProject: (id: string) => Promise<void>;
+  onAssignBoardToProject: (boardId: string, projectId: string | null) => Promise<void>;
   onSelectBoard: (boardId: string) => void;
   onAddBoard: () => Promise<void>;
   onEditBoard: (boardId: string, title: string) => Promise<void>;
@@ -198,6 +209,15 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
   currentFilterView,
   sharedFilterViews,
   onFilterViewChange,
+  projects,
+  selectedProjectId,
+  sidebarOpen,
+  onSelectProject,
+  onSidebarToggle,
+  onCreateProject,
+  onUpdateProject,
+  onDeleteProject,
+  onAssignBoardToProject,
   onSelectBoard,
   onAddBoard,
   onEditBoard,
@@ -536,6 +556,24 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
 
   return (
     <>
+      {/* Project Sidebar + Main Content */}
+      <div className="flex -mx-6 min-h-0">
+        <ProjectSidebar
+          projects={projects}
+          boards={boards}
+          selectedBoard={selectedBoard}
+          isAdmin={!!currentUser?.roles?.includes('admin')}
+          isOpen={sidebarOpen}
+          onToggle={onSidebarToggle}
+          onSelectBoard={onSelectBoard}
+          onCreateProject={onCreateProject}
+          onUpdateProject={onUpdateProject}
+          onDeleteProject={onDeleteProject}
+          onAssignBoardToProject={onAssignBoardToProject}
+          selectedProjectId={selectedProjectId}
+          onSelectProject={onSelectProject}
+        />
+        <div className="flex-1 min-w-0 px-6 overflow-hidden">
       {/* Tools, Team Members, and Board Metrics in a flex container */}
       <div className="flex gap-4 mb-4">
         <Tools 
@@ -596,6 +634,7 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
       <BoardTabs
         boards={boards}
         selectedBoard={selectedBoard}
+        selectedProjectId={selectedProjectId}
         onSelectBoard={onSelectBoard}
         onAddBoard={onAddBoard}
         onEditBoard={onEditBoard}
@@ -895,6 +934,8 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
       )}
 
 
+        </div>
+      </div>
     </>
   );
 };

@@ -89,6 +89,16 @@ interface MainLayoutProps {
   currentFilterView?: any; // SavedFilterView | null
   sharedFilterViews?: any[]; // SavedFilterView[]
   onFilterViewChange?: (view: any) => void; // (view: SavedFilterView | null) => void
+  // Project props
+  projects: any[];
+  selectedProjectId: string | null;
+  sidebarOpen: boolean;
+  onSelectProject: (id: string | null) => void;
+  onSidebarToggle: () => void;
+  onCreateProject: (title: string, color: string) => Promise<void>;
+  onUpdateProject: (id: string, title: string, color: string) => Promise<void>;
+  onDeleteProject: (id: string) => Promise<void>;
+  onAssignBoardToProject: (boardId: string, projectId: string | null) => Promise<void>;
   onSelectBoard: (boardId: string) => void;
   onAddBoard: () => Promise<void>;
   onEditBoard: (boardId: string, title: string) => Promise<void>;

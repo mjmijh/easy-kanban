@@ -387,6 +387,11 @@ app.use('/api/settings', settingsRouter);
 app.use('/api/admin/settings', settingsRouter);
 app.use('/api/storage', settingsRouter);
 app.use('/api/admin', lazyRouteLoader('./routes/adminSystem.js'));
+<<<<<<< HEAD
+=======
+app.use('/api/projects', lazyRouteLoader('./routes/projects.js'));
+app.use('/api/admin/backup', lazyRouteLoader('./routes/adminBackup.js'));
+>>>>>>> e9b736a (feat: project hierarchy - boards can be grouped into projects)
 app.use('/api/admin/notification-queue', lazyRouteLoader('./routes/adminNotificationQueue.js'));
 app.use('/api/tasks', taskRelationsRouter);
 app.use('/api/activity', activityRouter);

@@ -90,10 +90,20 @@ export interface Columns {
   [key: string]: Column;
 }
 
+export interface Project {
+  id: string;
+  title: string;
+  color: string;
+  position: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Board {
   id: string;
   title: string;
   project?: string;
+  project_group_id?: string | null;
   columns: Columns;
   position?: number;
 }
