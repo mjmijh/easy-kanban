@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { DndContext, DragOverlay, useDroppable } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
@@ -19,6 +19,7 @@ import SearchInterface from '../SearchInterface';
 import KanbanColumn from '../Column';
 import TaskCard from '../TaskCard';
 import BoardTabs from '../BoardTabs';
+import ProjectSidebar from '../ProjectSidebar';
 import LoadingSpinner from '../LoadingSpinner';
 import ListView from '../ListView';
 import ColumnResizeHandle from '../ColumnResizeHandle';
@@ -59,6 +60,16 @@ interface KanbanPageProps {
   sensors: any;
   collisionDetection: any;
   siteSettings: { [key: string]: string };
+  // Project props
+  projects?: any[];
+  selectedProjectId?: string | null;
+  sidebarOpen?: boolean;
+  onSelectProject?: (id: string | null) => void;
+  onSidebarToggle?: () => void;
+  onCreateProject?: (title: string, color: string) => Promise<void>;
+  onUpdateProject?: (id: string, title: string, color: string) => Promise<void>;
+  onDeleteProject?: (id: string) => Promise<void>;
+  onAssignBoardToProject?: (boardId: string, projectId: string | null) => Promise<void>;
   
   // Column filtering props
   boardColumnVisibility: {[boardId: string]: string[]};
@@ -234,6 +245,15 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
   onSelectTask,
   onTaskDropOnBoard,
   siteSettings,
+  projects = [],
+  selectedProjectId = null,
+  sidebarOpen = false,
+  onSelectProject,
+  onSidebarToggle,
+  onCreateProject,
+  onUpdateProject,
+  onDeleteProject,
+  onAssignBoardToProject,
   boardColumnVisibility,
   onBoardColumnVisibilityChange,
   
@@ -536,6 +556,26 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
 
   return (
     <>
+      {/* Project Sidebar + main content */}
+      <div className="flex gap-4">
+        {projects.length > 0 && (
+          <ProjectSidebar
+            projects={projects}
+            boards={boards}
+            selectedBoard={selectedBoard}
+            selectedProjectId={selectedProjectId ?? null}
+            isOpen={sidebarOpen}
+            isAdmin={currentUser?.roles?.includes('admin') ?? false}
+            onSelectProject={onSelectProject ?? (() => {})}
+            onToggle={onSidebarToggle ?? (() => {})}
+            onSelectBoard={onSelectBoard}
+            onCreateProject={onCreateProject ?? (async () => {})}
+            onUpdateProject={onUpdateProject ?? (async () => {})}
+            onDeleteProject={onDeleteProject ?? (async () => {})}
+            onAssignBoardToProject={onAssignBoardToProject ?? (async () => {})}
+          />
+        )}
+        <div className="flex-1 min-w-0">
       {/* Tools, Team Members, and Board Metrics in a flex container */}
       <div className="flex gap-4 mb-4">
         <Tools 
@@ -894,8 +934,8 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
           )}
         </div>
       )}
-
-
+        </div>
+      </div>
     </>
   );
 };
