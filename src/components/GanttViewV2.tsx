@@ -1883,8 +1883,9 @@ const GanttViewV2 = ({
             className="sticky left-0 z-30 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700"
             style={{ width: `${taskColumnWidth}px` }}
           >
-            <div className="h-14 flex flex-col">
+            <div className={`flex flex-col ${siteSettings?.GANTT_SHOW_CALENDAR_WEEKS !== '0' ? 'h-[76px]' : 'h-14'}`}>
               <div className="h-6 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600"></div>
+              {siteSettings?.GANTT_SHOW_CALENDAR_WEEKS !== '0' && <div className="h-5 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600"></div>}
               <div className="h-8 flex items-center justify-between px-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
                 <span className="font-semibold text-sm">{t('gantt.tasks', { ns: 'common' })}</span>
                 {/* Navigation controls */}
