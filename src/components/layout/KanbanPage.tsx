@@ -558,7 +558,7 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
     <>
       {/* Project Sidebar + main content */}
       <div className="flex gap-4">
-        {projects.length > 0 && (
+        {onSidebarToggle && (
           <ProjectSidebar
             projects={projects}
             boards={boards}
