@@ -864,8 +864,11 @@ const initializeDefaultData = async (db, tenantId = null) => {
       ['HIGHLIGHT_OVERDUE_TASKS', 'true'], // Highlight overdue tasks in light red
       ['PROJECTS_ENABLED', '0'], // Enable project grouping features (0=simple, 1=extended)
       ['DEFAULT_BOARD_COLUMNS', '["To Do","In Progress","Testing","Completed","Archive"]'], // Default columns for new boards
+<<<<<<< HEAD
       ['GANTT_SHOW_CALENDAR_WEEKS', '1'], // Show calendar weeks in Gantt chart
       ['GANTT_WEEK_START_DAY', '4'], // Week start day for ISO week number (4=Thursday = ISO 8601 / German norm)
+=======
+>>>>>>> feat/default-board-columns
       ['STORAGE_LIMIT', '5368709120'], // 5GB storage limit in bytes (5 * 1024^3)
       ['STORAGE_USED', '0'], // Current storage usage in bytes
       ['UPLOAD_MAX_FILESIZE', '10485760'], // 10MB max file size in bytes (10 * 1024^2)

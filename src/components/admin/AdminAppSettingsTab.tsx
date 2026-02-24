@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import AdminFileUploadsTab from './AdminFileUploadsTab';
 import AdminNotificationQueueTab from './AdminNotificationQueueTab';
@@ -694,6 +694,7 @@ const AdminAppSettingsTab: React.FC<AdminAppSettingsTabProps> = ({
               </div>
             </div>
 
+<<<<<<< HEAD
             {/* Gantt Calendar Weeks */}
             <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
               <div className="flex items-start justify-between gap-6 mb-4">
@@ -738,6 +739,8 @@ const AdminAppSettingsTab: React.FC<AdminAppSettingsTabProps> = ({
               </div>
             </div>
 
+=======
+>>>>>>> feat/default-board-columns
             {/* Action Buttons - Always show for manual save fields (position, width, height) */}
             <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 flex justify-end space-x-3">
               <button

@@ -233,10 +233,16 @@ router.post('/', authenticateToken, checkBoardLimit, async (req, res) => {
     
     const wrappedColumnStmt = wrapQuery(columnStmt, 'INSERT');
     
+    // Get finished column names from settings for accurate is_finished detection
+    const finishedNamesRaw = db.prepare('SELECT value FROM settings WHERE key = ?').get('DEFAULT_FINISHED_COLUMN_NAMES')?.value || 'Done,Completed,Finished';
+    const finishedNames = finishedNamesRaw.split(',').map(n => n.trim().toLowerCase());
+    const archivedNames = ['archive', 'archiv', 'archived'];
+
     for (const [index, col] of defaultColumns.entries()) {
       const columnId = `${col.id}-${id}`;
-      const isFinished = col.id === 'completed';
-      const isArchived = col.id === 'archive';
+      const titleLower = col.title.toLowerCase();
+      const isFinished = col.id === 'completed' || finishedNames.includes(titleLower);
+      const isArchived = col.id === 'archive' || archivedNames.includes(titleLower);
       
       await wrappedColumnStmt.run(columnId, col.title, id, index, isFinished ? 1 : 0, isArchived ? 1 : 0);
       
