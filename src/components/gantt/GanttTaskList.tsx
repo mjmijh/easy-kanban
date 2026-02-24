@@ -272,41 +272,39 @@ const TaskRow = memo(({
               : 'hover:bg-gray-100 dark:hover:bg-gray-700'
           }`}
         >
+<<<<<<< HEAD
           <div className="flex items-center gap-2 mb-1">
             <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{task.ticket}</div>
             {isTaskBlocked(task) && (
               <span className="bg-orange-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-sm">
                 {t('tasks:taskCard.blocked')}
               </span>
+=======
+          {/* Title first, bold */}
+          {taskViewMode !== 'compact' && taskViewMode !== 'shrink' && (
+            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 mb-0.5">{task.title}</div>
+          )}
+          {/* Secondary row: Task ID · Status · Date */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs font-medium text-blue-600 dark:text-blue-400">{task.ticket}</span>
+            {taskViewMode !== 'compact' && (
+              <span className="text-xs text-gray-400 dark:text-gray-500">· 📋 {task.status}</span>
+>>>>>>> feat/gantt-task-display
             )}
             {(task.startDate || task.endDate) && (
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                {task.startDate && task.endDate && task.startDate.getTime() === task.endDate.getTime() 
-                  ? `📅 ${task.endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                · 📅 {task.startDate && task.endDate && task.startDate.getTime() === task.endDate.getTime()
+                  ? task.endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                   : task.startDate && task.endDate
-                  ? `📅 ${task.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${task.endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                  ? `${task.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${task.endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
                   : task.endDate
-                    ? `📅 ${task.endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                    ? task.endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                     : task.startDate
-                    ? `📅 ${task.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-                    : ''
-                  }
+                    ? task.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    : ''}
               </span>
             )}
           </div>
-          {/* Compact: Only TASK-XXXXX with dates */}
-          {taskViewMode === 'compact' ? null : (
-            <>
-              {taskViewMode !== 'shrink' && taskViewMode !== 'compact' && (
-                <div className="text-sm text-gray-600 dark:text-gray-300 truncate">{task.title}</div>
-              )}
-              {taskViewMode !== 'compact' && (
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  📋 {task.status}
-                </div>
-              )}
-            </>
-          )}
         </button>
         
         {/* Action buttons - Now positioned on the right */}
