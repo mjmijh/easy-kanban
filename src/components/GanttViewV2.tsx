@@ -14,16 +14,6 @@ import websocketClient from '../services/websocketClient';
 import { loadUserPreferencesAsync, saveUserPreferences, loadUserPreferences } from '../utils/userPreferences';
 import { useGanttScrollPosition, getLeftmostVisibleDateFromDOM } from '../hooks/useGanttScrollPosition';
 
-// ISO week number calculation (ISO 8601 / German norm DIN 1355)
-const getISOWeekNumber = (date: Date): number => {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayOfWeek = d.getUTCDay() || 7; // 1=Mon ... 7=Sun
-  // Move to Thursday of this week (ISO: week containing first Thursday = week 1)
-  d.setUTCDate(d.getUTCDate() + 4 - dayOfWeek);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-};
-
 interface GanttViewV2Props {
   columns: Columns;
   onSelectTask: (task: Task | null) => void;
@@ -1127,7 +1117,9 @@ const GanttViewV2 = ({
           priorityName: priorityName,
           columnId: task.columnId,
           columnPosition: column.position || 0,
-          taskPosition: task.position || 0
+          taskPosition: task.position || 0,
+          isColumnFinished: column.is_finished || false,
+          isColumnArchived: column.is_archived || false
         };
         
         tasks.push(ganttTask);
@@ -2041,38 +2033,7 @@ const GanttViewV2 = ({
                   </div>
                 ))}
               </div>
-
-              {/* Calendar Week Row */}
-              {siteSettings?.GANTT_SHOW_CALENDAR_WEEKS === '1' && (() => {
-                const weekStartDay = parseInt(siteSettings?.GANTT_WEEK_START_DAY || '4');
-                // Build KW markers: show KW label only on the Monday (first day) of each week
-                return (
-                  <div
-                    className="h-5 grid border-b border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700"
-                    style={{ gridTemplateColumns: `repeat(${dateRange.length}, 40px)` }}
-                    data-gantt-week-row="true"
-                  >
-                    {dateRange.map((dateCol, index) => {
-                      const dow = dateCol.date.getDay(); // 0=Sun,1=Mon,...,6=Sat
-                      const isMonday = dow === 1;
-                      const kw = isMonday || index === 0
-                        ? getISOWeekNumber(dateCol.date, weekStartDay)
-                        : null;
-                      return (
-                        <div
-                          key={`kw-${index}`}
-                          className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center border-r border-gray-200 dark:border-gray-600"
-                        >
-                          {kw !== null && (
-                            <span className="font-medium text-blue-600 dark:text-blue-400">KW{kw}</span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-
+              
               {/* Day Numbers Row */}
               <div 
                 className="h-8 grid border-b border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700"
@@ -2126,6 +2087,7 @@ const GanttViewV2 = ({
             onRemoveTask={onRemoveTask}
             highlightedTaskId={highlightedTaskId}
             siteSettings={siteSettings}
+            relationships={[...relationships, ...localRelationships]}
           />
           
           {/* Task drag preview */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import AdminFileUploadsTab from './AdminFileUploadsTab';
 import AdminNotificationQueueTab from './AdminNotificationQueueTab';
@@ -691,50 +691,6 @@ const AdminAppSettingsTab: React.FC<AdminAppSettingsTabProps> = ({
                     }`}
                   />
                 </button>
-              </div>
-            </div>
-
-            {/* Gantt Calendar Weeks */}
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-              <div className="flex items-start justify-between gap-6 mb-4">
-                <div className="flex-1">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">Gantt — Kalenderwochen anzeigen</label>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Zeigt eine Zeile mit Kalenderwochen (KW) im Gantt-Diagramm an.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const newVal = editingSettings.GANTT_SHOW_CALENDAR_WEEKS === '1' ? '0' : '1';
-                    onSettingsChange({ ...editingSettings, GANTT_SHOW_CALENDAR_WEEKS: newVal });
-                    if (onAutoSave) await onAutoSave('GANTT_SHOW_CALENDAR_WEEKS', newVal);
-                  }}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    editingSettings.GANTT_SHOW_CALENDAR_WEEKS !== '0' ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-600'
-                  }`}
-                  role="switch"
-                  aria-checked={editingSettings.GANTT_SHOW_CALENDAR_WEEKS !== '0'}
-                >
-                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${
-                    editingSettings.GANTT_SHOW_CALENDAR_WEEKS !== '0' ? 'translate-x-5' : 'translate-x-0'
-                  }`} />
-                </button>
-              </div>
-              <div className="flex items-center gap-4">
-                <label className="text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">Wochenbeginn-Norm:</label>
-                <select
-                  value={editingSettings.GANTT_WEEK_START_DAY || '4'}
-                  onChange={async (e) => {
-                    onSettingsChange({ ...editingSettings, GANTT_WEEK_START_DAY: e.target.value });
-                    if (onAutoSave) await onAutoSave('GANTT_WEEK_START_DAY', e.target.value);
-                  }}
-                  className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                >
-                  <option value="4">ISO 8601 / DIN 1355 (Deutschland) — 1. Donnerstag</option>
-                  <option value="1">US/CA — 1. Januar</option>
-                  <option value="7">Mittlerer Osten — 1. Samstag</option>
-                </select>
               </div>
             </div>
 
