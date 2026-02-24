@@ -397,6 +397,7 @@ app.use('/api/user', usersRouter); // User settings routes
 
 // Admin Portal API routes (external access using INSTANCE_TOKEN) - Lazy loaded
 app.use('/api/admin-portal', lazyRouteLoader('./routes/adminPortal.js'));
+app.use('/api/projects', lazyRouteLoader('./routes/projects.js'));
 
 // ================================
 // ADDITIONAL ENDPOINTS
