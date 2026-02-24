@@ -387,11 +387,6 @@ app.use('/api/settings', settingsRouter);
 app.use('/api/admin/settings', settingsRouter);
 app.use('/api/storage', settingsRouter);
 app.use('/api/admin', lazyRouteLoader('./routes/adminSystem.js'));
-<<<<<<< HEAD
-=======
-app.use('/api/projects', lazyRouteLoader('./routes/projects.js'));
-app.use('/api/admin/backup', lazyRouteLoader('./routes/adminBackup.js'));
->>>>>>> e9b736a (feat: project hierarchy - boards can be grouped into projects)
 app.use('/api/admin/notification-queue', lazyRouteLoader('./routes/adminNotificationQueue.js'));
 app.use('/api/tasks', taskRelationsRouter);
 app.use('/api/activity', activityRouter);
@@ -400,6 +395,7 @@ app.use('/api/user', usersRouter); // User settings routes
 
 // Admin Portal API routes (external access using INSTANCE_TOKEN) - Lazy loaded
 app.use('/api/admin-portal', lazyRouteLoader('./routes/adminPortal.js'));
+app.use('/api/projects', lazyRouteLoader('./routes/projects.js'));
 
 // ================================
 // ADDITIONAL ENDPOINTS
