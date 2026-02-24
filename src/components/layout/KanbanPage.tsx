@@ -286,8 +286,13 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
   // Filter boards by selected project
   const filteredBoards = useMemo(() => {
     if (!selectedProjectId) return boards; // 'All Boards' selected
+    // Show boards of selected project; if selected board is ungrouped, show only it
+    const selectedBoardObj = boards.find(b => b.id === selectedBoard);
+    if (selectedBoardObj && !selectedBoardObj.project_group_id) {
+      return [selectedBoardObj]; // ungrouped board selected — show only it
+    }
     return boards.filter(b => b.project_group_id === selectedProjectId);
-  }, [boards, selectedProjectId]);
+  }, [boards, selectedProjectId, selectedBoard]);
 
   const visibleColumnsForCurrentBoard = useMemo(() => {
     if (!selectedBoard) return [];
