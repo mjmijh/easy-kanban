@@ -15,6 +15,7 @@ import {
 
 interface BoardTabsProps {
   boards: Board[];
+  selectedProjectId?: string | null;
   selectedBoard: string | null;
   onSelectBoard: (boardId: string) => void;
   onAddBoard: () => void;
@@ -354,8 +355,9 @@ const RegularBoardTab: React.FC<{
 };
 
 export default function BoardTabs({
-  boards,
+  boards: boards_prop,
   selectedBoard,
+  selectedProjectId,
   onSelectBoard,
   onAddBoard,
   onEditBoard,
@@ -368,6 +370,11 @@ export default function BoardTabs({
   onTaskDropOnBoard,
   siteSettings
 }: BoardTabsProps) {
+  // Filter boards by selected project (null = show all)
+  const boards = React.useMemo(() => {
+    if (!selectedProjectId) return boards_prop;
+    return boards_prop.filter(b => b.project_group_id === selectedProjectId);
+  }, [boards_prop, selectedProjectId]);
   const { t } = useTranslation('common');
   const [editingBoardId, setEditingBoardId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState<string>('');
@@ -478,6 +485,33 @@ export default function BoardTabs({
   // Board selection is now handled by the main App.tsx logic
   // This effect has been removed to prevent automatic board selection
 
+  // Close confirmation menu when clicking outside
+  useEffect(() => {
+    if (!showDeleteConfirm) {
+      // If no confirmation is showing, don't add listeners but still call useEffect properly
+      return;
+    }
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      // Don't close if clicking on the delete confirmation menu or its children
+      if (target.closest('.delete-confirmation')) {
+        return;
+      }
+      setShowDeleteConfirm(null);
+    };
+
+    // Use a small delay to avoid interfering with the initial click
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 10);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showDeleteConfirm]);
+
   if (boards.length === 0) {
     return (
       <div className="flex items-center gap-2 p-4">
@@ -554,32 +588,6 @@ export default function BoardTabs({
     setShowDeleteConfirm(null);
   };
 
-  // Close confirmation menu when clicking outside
-  useEffect(() => {
-    if (!showDeleteConfirm) {
-      // If no confirmation is showing, don't add listeners but still call useEffect properly
-      return;
-    }
-    
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-      // Don't close if clicking on the delete confirmation menu or its children
-      if (target.closest('.delete-confirmation')) {
-        return;
-      }
-      setShowDeleteConfirm(null);
-    };
-
-    // Use a small delay to avoid interfering with the initial click
-    const timeoutId = setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside);
-    }, 10);
-    
-    return () => {
-      clearTimeout(timeoutId);
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showDeleteConfirm]);
 
   // Get the current board's project identifier
   const currentBoard = boards.find(board => board.id === selectedBoard);

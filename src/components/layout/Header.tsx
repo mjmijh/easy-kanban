@@ -417,15 +417,12 @@ const Header: React.FC<HeaderProps> = ({
     <header className="sticky top-0 z-50 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-100 dark:border-gray-700" data-tour-id="navigation">
       <div className="w-4/5 mx-auto px-6 py-2.5 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <a 
-            href={siteSettings.SITE_URL || '#'} 
-            {...(siteSettings.SITE_OPENS_NEW_TAB === undefined || siteSettings.SITE_OPENS_NEW_TAB === 'true' 
-              ? { target: '_blank', rel: 'noopener noreferrer' } 
-              : {})}
+          <button
+            onClick={() => onPageChange('kanban')}
             className="text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
           >
             {siteSettings.SITE_NAME || 'Easy Kanban'}
-          </a>
+          </button>
           {/* Sprint Selector - only show in Kanban view, hide on TaskPage */}
           {currentUser && currentPage === 'kanban' && !hideSprintSelector && (
             <SprintSelector

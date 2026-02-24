@@ -43,6 +43,7 @@ interface ListViewProps {
   boards?: Board[]; // To get project identifier from board
   siteSettings?: { [key: string]: string }; // Site settings for badge system
   currentUser?: CurrentUser | null; // Current user for admin checks
+  onAddTask?: (columnId: string) => Promise<void>;
 }
 
 type SortField = 'sprint' | 'ticket' | 'title' | 'priority' | 'assignee' | 'startDate' | 'dueDate' | 'createdAt' | 'column' | 'tags' | 'comments';
@@ -91,7 +92,8 @@ export default function ListView({
   onScrollControlsChange,
   boards,
   siteSettings,
-  currentUser
+  currentUser,
+  onAddTask,
 }: ListViewProps) {
   const { t } = useTranslation(['tasks', 'common']);
   
@@ -1828,6 +1830,21 @@ export default function ListView({
             )}
           </tbody>
         </table>
+        {/* Add task row */}
+        {onAddTask && (
+          <button
+            onClick={() => {
+              const cols = Object.values(filteredColumns)
+                .filter((c: any) => !c.is_finished && !c.is_archived)
+                .sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
+              if (cols.length > 0) onAddTask((cols[0] as any).id);
+            }}
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-t border-gray-200 dark:border-gray-700"
+          >
+            <span className="text-lg leading-none">+</span>
+            <span>Add task</span>
+          </button>
+        )}
         </div>
 
       {/* Click outside to close column menu */}

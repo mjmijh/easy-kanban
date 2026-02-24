@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api, { createUser, updateUser, getUserTaskCount, resendUserInvitation, getTags, createTag, updateTag, deleteTag, getTagUsage, getBatchTagUsage, getPriorities, createPriority, updatePriority, deletePriority, reorderPriorities, setDefaultPriority, getPriorityUsage, getBatchPriorityUsage } from '../api';
 import { ADMIN_TABS, ROUTES } from '../constants';
@@ -15,6 +15,7 @@ import AdminSprintSettingsTab from './admin/AdminSprintSettingsTab';
 import AdminReportingTab from './admin/AdminReportingTab';
 import AdminLicensingTab from './admin/AdminLicensingTab';
 import AdminNotificationQueueTab from './admin/AdminNotificationQueueTab';
+import AdminBackupTab from './admin/AdminBackupTab';
 import websocketClient from '../services/websocketClient';
 import { useSettings } from '../contexts/SettingsContext';
 
@@ -1061,7 +1062,7 @@ const Admin: React.FC<AdminProps> = ({ currentUser, onUsersChanged, onSettingsCh
         {/* Tabs */}
         <div className="sticky top-16 z-40 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 mb-6 -mx-4 px-4 py-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8" data-tour-id="admin-tabs">
           <nav className="-mb-px flex space-x-8">
-            {['users', 'site-settings', 'sso', 'mail-server', 'tags', 'priorities', 'app-settings', 'project-settings', 'sprint-settings', 'reporting', 'licensing'].map((tab) => (
+            {['users', 'site-settings', 'sso', 'mail-server', 'tags', 'priorities', 'app-settings', 'project-settings', 'sprint-settings', 'reporting', 'licensing', 'backup'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => handleTabChange(tab)}
@@ -1084,6 +1085,7 @@ const Admin: React.FC<AdminProps> = ({ currentUser, onUsersChanged, onSettingsCh
                 {tab === 'reporting' && t('tabs.reporting')}
                 {tab === 'licensing' && t('tabs.licensing')}
                 {tab === 'notification-queue' && t('tabs.notificationQueue')}
+                {tab === 'backup' && 'Backup & Restore'}
               </button>
             ))}
           </nav>
@@ -1231,6 +1233,9 @@ const Admin: React.FC<AdminProps> = ({ currentUser, onUsersChanged, onSettingsCh
           {/* Notification Queue Tab */}
           {activeTab === 'notification-queue' && (
             <AdminNotificationQueueTab />
+          )}
+          {activeTab === 'backup' && (
+            <AdminBackupTab />
           )}
         </div>
     </div>

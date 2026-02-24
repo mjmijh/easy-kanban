@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import AdminFileUploadsTab from './AdminFileUploadsTab';
 import AdminNotificationQueueTab from './AdminNotificationQueueTab';
@@ -22,6 +22,8 @@ const AdminAppSettingsTab: React.FC<AdminAppSettingsTabProps> = ({
   const { t } = useTranslation('admin');
   const [isSaving, setIsSaving] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'ui' | 'uploads' | 'notifications' | 'notification-queue'>('ui');
+  const [defaultBoardColumns, setDefaultBoardColumns] = useState<string[]>([]);
+  const [newBoardColumnName, setNewBoardColumnName] = useState('');
   const [notificationDefaults, setNotificationDefaults] = useState<{ [key: string]: boolean }>({});
   const [autosaveSuccess, setAutosaveSuccess] = useState<string | null>(null);
 
@@ -59,6 +61,17 @@ const AdminAppSettingsTab: React.FC<AdminAppSettingsTabProps> = ({
       });
     }
   }, [settings.NOTIFICATION_DEFAULTS]);
+
+  // Initialize default board columns from settings
+  const SYSTEM_DEFAULT_COLUMNS = ['To Do', 'In Progress', 'Testing', 'Completed', 'Archive'];
+
+  React.useEffect(() => {
+    try {
+      const saved = editingSettings.DEFAULT_BOARD_COLUMNS;
+      // If no custom setting yet, show the system defaults so admin can edit/remove them
+      setDefaultBoardColumns(saved ? JSON.parse(saved) : SYSTEM_DEFAULT_COLUMNS);
+    } catch { setDefaultBoardColumns(SYSTEM_DEFAULT_COLUMNS); }
+  }, [editingSettings.DEFAULT_BOARD_COLUMNS]);
 
   // Initialize activeSubTab from URL hash
   useEffect(() => {
@@ -559,6 +572,127 @@ const AdminAppSettingsTab: React.FC<AdminAppSettingsTabProps> = ({
                 </div>
           </div>
         </div>
+
+            {/* Default Board Columns */}
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="mb-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">Default Board Columns</label>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Columns created automatically when a new board is added. Leave empty to use the language-based defaults (To Do, In Progress, Testing, Completed).
+                </p>
+              </div>
+              <div className="space-y-1.5 mb-3">
+                {defaultBoardColumns.length === 0 ? (
+                  <span className="text-sm text-gray-400 italic">No columns — add at least one</span>
+                ) : (
+                  defaultBoardColumns.map((col, i) => {
+                    const saveUpdated = async (updated: string[]) => {
+                      setDefaultBoardColumns(updated);
+                      const val = updated.length > 0 ? JSON.stringify(updated) : '';
+                      onSettingsChange({ ...editingSettings, DEFAULT_BOARD_COLUMNS: val });
+                      if (onAutoSave) await onAutoSave('DEFAULT_BOARD_COLUMNS', val);
+                    };
+                    const moveUp = async () => {
+                      if (i === 0) return;
+                      const updated = [...defaultBoardColumns];
+                      [updated[i - 1], updated[i]] = [updated[i], updated[i - 1]];
+                      await saveUpdated(updated);
+                    };
+                    const moveDown = async () => {
+                      if (i === defaultBoardColumns.length - 1) return;
+                      const updated = [...defaultBoardColumns];
+                      [updated[i + 1], updated[i]] = [updated[i], updated[i + 1]];
+                      await saveUpdated(updated);
+                    };
+                    const remove = async () => {
+                      await saveUpdated(defaultBoardColumns.filter((_, idx) => idx !== i));
+                    };
+                    return (
+                      <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
+                        <div className="flex flex-col gap-0.5">
+                          <button type="button" onClick={moveUp} disabled={i === 0}
+                            className="text-blue-300 hover:text-blue-600 dark:hover:text-blue-200 disabled:opacity-20 leading-none text-xs">▲</button>
+                          <button type="button" onClick={moveDown} disabled={i === defaultBoardColumns.length - 1}
+                            className="text-blue-300 hover:text-blue-600 dark:hover:text-blue-200 disabled:opacity-20 leading-none text-xs">▼</button>
+                        </div>
+                        <span className="flex-1 text-sm text-blue-700 dark:text-blue-300">{col}</span>
+                        <button type="button" onClick={remove}
+                          className="text-blue-300 hover:text-red-500 dark:hover:text-red-400 leading-none text-sm">×</button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newBoardColumnName}
+                  onChange={e => setNewBoardColumnName(e.target.value)}
+                  onKeyDown={async e => {
+                    if (e.key === 'Enter' && newBoardColumnName.trim()) {
+                      const updated = [...defaultBoardColumns, newBoardColumnName.trim()];
+                      setDefaultBoardColumns(updated);
+                      setNewBoardColumnName('');
+                      const val = JSON.stringify(updated);
+                      onSettingsChange({ ...editingSettings, DEFAULT_BOARD_COLUMNS: val });
+                      if (onAutoSave) await onAutoSave('DEFAULT_BOARD_COLUMNS', val);
+                    }
+                  }}
+                  placeholder="Column name, press Enter to add"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!newBoardColumnName.trim()) return;
+                    const updated = [...defaultBoardColumns, newBoardColumnName.trim()];
+                    setDefaultBoardColumns(updated);
+                    setNewBoardColumnName('');
+                    const val = JSON.stringify(updated);
+                    onSettingsChange({ ...editingSettings, DEFAULT_BOARD_COLUMNS: val });
+                    if (onAutoSave) await onAutoSave('DEFAULT_BOARD_COLUMNS', val);
+                  }}
+                  className="px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+                >Add</button>
+              </div>
+            </div>
+
+            {/* Project Features Toggle */}
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-start justify-between gap-6">
+                <div className="flex-1">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">Extended Mode — Project Features</label>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    When enabled, boards can be grouped into projects, tasks show their board and project in the detail view, and the project sidebar is visible.
+                    When disabled, the app shows a clean board-only interface (original behaviour).
+                  </p>
+                  {editingSettings.PROJECTS_ENABLED === '1' && (
+                    <p className="mt-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded px-2 py-1">
+                      ⚠️ Switching back to Simple Mode will hide project groupings but <strong>not delete any data</strong>. Everything reappears when you re-enable Extended Mode.
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const newVal = editingSettings.PROJECTS_ENABLED === '1' ? '0' : '1';
+                    onSettingsChange({ ...editingSettings, PROJECTS_ENABLED: newVal });
+                    if (onAutoSave) await onAutoSave('PROJECTS_ENABLED', newVal);
+                  }}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    editingSettings.PROJECTS_ENABLED === '1' ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-600'
+                  }`}
+                  role="switch"
+                  aria-checked={editingSettings.PROJECTS_ENABLED === '1'}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${
+                      editingSettings.PROJECTS_ENABLED === '1' ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
 
             {/* Action Buttons - Always show for manual save fields (position, width, height) */}
             <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 flex justify-end space-x-3">

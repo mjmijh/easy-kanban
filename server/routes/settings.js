@@ -17,7 +17,7 @@ router.get('/', async (req, res, next) => {
   
   try {
     const db = getRequestDatabase(req);
-    const settings = await wrapQuery(db.prepare('SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?, ?, ?)'), 'SELECT').all('SITE_NAME', 'SITE_URL', 'MAIL_ENABLED', 'GOOGLE_CLIENT_ID', 'HIGHLIGHT_OVERDUE_TASKS', 'DEFAULT_FINISHED_COLUMN_NAMES');
+    const settings = await wrapQuery(db.prepare('SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?, ?, ?, ?)'), 'SELECT').all('SITE_NAME', 'SITE_URL', 'MAIL_ENABLED', 'GOOGLE_CLIENT_ID', 'HIGHLIGHT_OVERDUE_TASKS', 'DEFAULT_FINISHED_COLUMN_NAMES', 'PROJECTS_ENABLED');
     const settingsObj = {};
     settings.forEach(setting => {
       settingsObj[setting.key] = setting.value;

@@ -4,7 +4,7 @@ import { Task, TeamMember, Comment, Attachment, Tag, PriorityOption, CurrentUser
 import { X, Paperclip, ChevronDown, Check, Edit2, Plus } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import TextEditor from './TextEditor';
-import { createComment, uploadFile, updateTask, deleteComment, updateComment, fetchCommentAttachments, getAllTags, getTaskTags, addTagToTask, removeTagFromTask, getAllPriorities, addWatcherToTask, removeWatcherFromTask, addCollaboratorToTask, removeCollaboratorFromTask, fetchTaskAttachments, deleteAttachment, getTaskRelationships, getAvailableTasksForRelationship, addTaskRelationship, removeTaskRelationship } from '../api';
+import { createComment, uploadFile, updateTask, deleteComment, updateComment, fetchCommentAttachments, getAllTags, getTaskTags, addTagToTask, removeTagFromTask, getAllPriorities, addWatcherToTask, removeWatcherFromTask, addCollaboratorToTask, removeCollaboratorFromTask, fetchTaskAttachments, deleteAttachment, getTaskRelationships, getAvailableTasksForRelationship, addTaskRelationship, removeTaskRelationship, getBoardColumns, moveTaskToBoard } from '../api';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { getLocalISOString, formatToYYYYMMDDHHmmss } from '../utils/dateUtils';
 import { generateUUID } from '../utils/uuid';
@@ -23,14 +23,54 @@ interface TaskDetailsProps {
   onUpdate: (updatedTask: Task) => void;
   siteSettings?: { [key: string]: string };
   boards?: any[]; // To get project identifier from board
+  projects?: any[]; // For grouping boards by project
+  onTaskMoved?: (taskId: string, newBoardId: string) => void;
   scrollToComments?: boolean;
 }
 
-export default function TaskDetails({ task, members, currentUser, onClose, onUpdate, siteSettings, boards, scrollToComments }: TaskDetailsProps) {
+export default function TaskDetails({ task, members, currentUser, onClose, onUpdate, siteSettings, boards, projects, scrollToComments, onTaskMoved }: TaskDetailsProps) {
   const { t } = useTranslation(['tasks', 'common']);
   const userPrefs = loadUserPreferences();
   const [width, setWidth] = useState(userPrefs.taskDetailsWidth);
   
+  const [boardColumns, setBoardColumns] = useState<{id: string, title: string}[]>([]);
+  const [showBoardSelector, setShowBoardSelector] = useState(false);
+  const [movingToBoard, setMovingToBoard] = useState(false);
+
+  // Load columns for current board
+  useEffect(() => {
+    if (!task.boardId) return;
+    getBoardColumns(task.boardId).then(setBoardColumns).catch(() => {});
+  }, [task.boardId]);
+
+  // Click-outside for board selector
+  useEffect(() => {
+    if (!showBoardSelector) return;
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as Element).closest('.board-selector-container')) {
+        setShowBoardSelector(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showBoardSelector]);
+
+  const handleMoveToBoard = async (targetBoardId: string) => {
+    if (!targetBoardId || targetBoardId === task.boardId) return;
+    try {
+      setMovingToBoard(true);
+      await moveTaskToBoard(task.id, targetBoardId);
+      const cols = await getBoardColumns(targetBoardId);
+      setBoardColumns(cols);
+      setShowBoardSelector(false);
+      if (onTaskMoved) onTaskMoved(task.id, targetBoardId);
+    } catch (e) {
+      console.error('Failed to move task:', e);
+    } finally {
+      setMovingToBoard(false);
+    }
+  };
+
   // Get project identifier from the board this task belongs to
   const getProjectIdentifier = () => {
     if (!boards || !task.boardId) return null;
@@ -1680,6 +1720,79 @@ export default function TaskDetails({ task, members, currentUser, onClose, onUpd
                 </select>
               </div>
             </div>
+
+            {/* Board selector */}
+            {boards && boards.length > 0 && projects && projects.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Board</label>
+                <div className="relative board-selector-container">
+                  <button
+                    type="button"
+                    onClick={() => setShowBoardSelector(v => !v)}
+                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:outline-none flex items-center justify-between text-gray-900 dark:text-gray-100"
+                  >
+                    <span className="truncate">{boards.find(b => b.id === task.boardId)?.title || '—'}</span>
+                    <ChevronDown size={14} className="text-gray-400 flex-shrink-0" />
+                  </button>
+                  {showBoardSelector && (
+                    <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 max-h-64 overflow-y-auto">
+                      {(() => {
+                        const ungrouped = boards.filter(b => !b.project_group_id);
+                        const grouped = (projects || []).map(p => ({
+                          project: p,
+                          boards: boards.filter(b => b.project_group_id === p.id)
+                        })).filter(g => g.boards.length > 0);
+
+                        const renderBoard = (b: any) => {
+                          const isCurrent = b.id === task.boardId;
+                          return (
+                            <button
+                              key={b.id}
+                              type="button"
+                              disabled={isCurrent || movingToBoard}
+                              onClick={() => handleMoveToBoard(b.id)}
+                              className={`w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 ${
+                                isCurrent
+                                  ? 'text-blue-600 font-medium bg-blue-50 dark:bg-blue-900/20'
+                                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                              }`}
+                            >
+                              {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />}
+                              <span className="truncate">{b.title}</span>
+                            </button>
+                          );
+                        };
+
+                        return (
+                          <>
+                            {grouped.map(g => (
+                              <div key={g.project.id}>
+                                <div className="flex items-center gap-1.5 px-3 py-1 mt-1">
+                                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: g.project.color }} />
+                                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wide truncate">{g.project.title}</span>
+                                </div>
+                                {g.boards.map(renderBoard)}
+                              </div>
+                            ))}
+                            {ungrouped.length > 0 && (
+                              <div>
+                                {grouped.length > 0 && <div className="px-3 py-1 mt-1 text-xs font-medium text-gray-400 uppercase tracking-wide">Ungrouped</div>}
+                                {ungrouped.map(renderBoard)}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+                {boardColumns.length > 0 && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Column: {boardColumns.find(c => c.id === task.columnId)?.title || '—'}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Tags Selection */}
             <div>

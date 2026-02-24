@@ -193,7 +193,7 @@ router.get('/:boardId/columns', authenticateToken, async (req, res) => {
 router.get('/default-columns', authenticateToken, async (req, res) => {
   try {
     const db = getRequestDatabase(req);
-    const defaultColumns = getDefaultBoardColumns(db);
+    const defaultColumns = await getDefaultBoardColumns(db);
     res.json(defaultColumns);
   } catch (error) {
     console.error('Error fetching default columns:', error);
@@ -203,7 +203,7 @@ router.get('/default-columns', authenticateToken, async (req, res) => {
 
 // Create board
 router.post('/', authenticateToken, checkBoardLimit, async (req, res) => {
-  const { id, title } = req.body;
+  const { id, title, project_group_id } = req.body;
   try {
     const db = getRequestDatabase(req);
     const t = getTranslator(db);
@@ -223,10 +223,10 @@ router.post('/', authenticateToken, checkBoardLimit, async (req, res) => {
     const projectIdentifier = await generateProjectIdentifier(db, projectPrefix);
     
     const position = await wrapQuery(db.prepare('SELECT MAX(position) as maxPos FROM boards'), 'SELECT').get()?.maxPos || -1;
-    await wrapQuery(db.prepare('INSERT INTO boards (id, title, project, position) VALUES (?, ?, ?, ?)'), 'INSERT').run(id, title, projectIdentifier, position + 1);
+    await wrapQuery(db.prepare('INSERT INTO boards (id, title, project, position, project_group_id) VALUES (?, ?, ?, ?, ?)'), 'INSERT').run(id, title, projectIdentifier, position + 1, project_group_id || null);
     
     // Automatically create default columns based on APP_LANGUAGE
-    const defaultColumns = getDefaultBoardColumns(db);
+    const defaultColumns = await getDefaultBoardColumns(db);
     const columnStmt = db.prepare('INSERT INTO columns (id, title, boardId, position, is_finished, is_archived) VALUES (?, ?, ?, ?, ?, ?)');
     
     const tenantId = getTenantId(req);
@@ -256,7 +256,7 @@ router.post('/', authenticateToken, checkBoardLimit, async (req, res) => {
       }, tenantId);
     }
     
-    const newBoard = { id, title, project: projectIdentifier, position: position + 1 };
+    const newBoard = { id, title, project: projectIdentifier, position: position + 1, project_group_id: project_group_id || null };
     
     // Publish to Redis for real-time updates
     redisService.publish('board-created', {

@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+﻿import Database from 'better-sqlite3';
 import DatabaseProxy from '../utils/databaseProxy.js';
 import fs from 'fs';
 import { dirname, join } from 'path';
@@ -862,6 +862,8 @@ const initializeDefaultData = async (db, tenantId = null) => {
       ['APP_LANGUAGE', 'EN'], // Default application language (EN or FR)
       ['SITE_OPENS_NEW_TAB', 'true'], // Default to opening links in new tab (matches current behavior)
       ['HIGHLIGHT_OVERDUE_TASKS', 'true'], // Highlight overdue tasks in light red
+      ['PROJECTS_ENABLED', '0'], // Enable project grouping features (0=simple, 1=extended)
+      ['DEFAULT_BOARD_COLUMNS', '["To Do","In Progress","Testing","Completed","Archive"]'], // Default columns for new boards
       ['STORAGE_LIMIT', '5368709120'], // 5GB storage limit in bytes (5 * 1024^3)
       ['STORAGE_USED', '0'], // Current storage usage in bytes
       ['UPLOAD_MAX_FILESIZE', '10485760'], // 10MB max file size in bytes (10 * 1024^2)

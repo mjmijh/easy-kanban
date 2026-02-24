@@ -12,6 +12,7 @@ interface GanttTaskListProps {
   columns: Columns;
   groupedTasks: { [columnId: string]: any[] };
   visibleTasks: any[];
+  relationships?: any[];
   selectedTask?: Task | null;
   selectedTasks: string[];
   isMultiSelectMode: boolean;
@@ -109,7 +110,9 @@ const TaskRow = memo(({
   onRemoveTask,
   highlightedTaskId,
   columns,
-  siteSettings
+  siteSettings,
+  relationships,
+  visibleTasks
 }: any) => {
   const { t } = useTranslation('common');
   const isThisTaskDragging = activeDragItem && 
@@ -137,6 +140,32 @@ const TaskRow = memo(({
     today.setHours(0, 0, 0, 0);
     dueDate.setHours(0, 0, 0, 0);
     return dueDate < today;
+  };
+
+  // Helper function to check if a task is blocked:
+  // A child task is BLOCKED when its parent is NOT finished AND child starts before/during parent
+  const isTaskBlocked = (task: any) => {
+    if (!relationships || relationships.length === 0) return false;
+    if (!task.startDate) return false;
+    const childStart = new Date(task.startDate);
+    childStart.setHours(0, 0, 0, 0);
+    // Find parent relationships where this task is the child (to_task_id)
+    const parentRels = relationships.filter(
+      (rel: any) => rel.relationship === 'parent' && rel.to_task_id === task.id
+    );
+    if (parentRels.length === 0) return false;
+    // Task is blocked if ANY parent is not finished AND child overlaps with parent
+    return parentRels.some((rel: any) => {
+      const parentTask = visibleTasks.find((t: any) => t.id === rel.task_id);
+      if (!parentTask) return false;
+      if (parentTask.isColumnFinished || parentTask.isColumnArchived) return false;
+      // If parent has no endDate, child is always blocked
+      if (!parentTask.endDate) return true;
+      const parentEnd = new Date(parentTask.endDate);
+      parentEnd.setHours(0, 0, 0, 0);
+      // Blocked if child starts before or on the same day as parent ends
+      return childStart <= parentEnd;
+    });
   };
 
   // Helper function to check if a column is finished
@@ -245,6 +274,11 @@ const TaskRow = memo(({
         >
           <div className="flex items-center gap-2 mb-1">
             <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{task.ticket}</div>
+            {isTaskBlocked(task) && (
+              <span className="bg-orange-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                {t('tasks:taskCard.blocked')}
+              </span>
+            )}
             {(task.startDate || task.endDate) && (
               <span className="text-xs text-gray-500 dark:text-gray-400">
                 {task.startDate && task.endDate && task.startDate.getTime() === task.endDate.getTime() 
@@ -333,7 +367,8 @@ const GanttTaskList = memo(({
   onCopyTask,
   onRemoveTask,
   highlightedTaskId,
-  siteSettings
+  siteSettings,
+  relationships
 }: GanttTaskListProps) => {
   const { t } = useTranslation('common');
   return (
@@ -402,6 +437,8 @@ const GanttTaskList = memo(({
                     highlightedTaskId={highlightedTaskId}
                     columns={columns}
                     siteSettings={siteSettings}
+                    relationships={relationships}
+                    visibleTasks={visibleTasks}
                   />
                 ))}
               </DroppableGroup>

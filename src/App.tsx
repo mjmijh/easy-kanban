@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { TeamMember, Task, Column, Columns, Board, PriorityOption, Tag, QueryLog, DragPreview } from './types';
 import { SavedFilterView, getSavedFilterView } from './api';
+import { Project } from './types';
+import NewBoardModal from './components/NewBoardModal';
 import DebugPanel from './components/DebugPanel';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { TourProvider } from './contexts/TourContext';
@@ -110,6 +112,21 @@ function AppContent() {
   const { t } = useTranslation('tasks');
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [boards, setBoards] = useState<Board[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => {
+    return localStorage.getItem('selectedProjectId') || null;
+  });
+
+  // Persist selectedProjectId to localStorage
+  useEffect(() => {
+    if (selectedProjectId) {
+      localStorage.setItem('selectedProjectId', selectedProjectId);
+    } else {
+      localStorage.removeItem('selectedProjectId');
+    }
+  }, [selectedProjectId]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showNewBoardModal, setShowNewBoardModal] = useState(false);
   const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
   const selectedBoardRef = useRef<string | null>(null); // Initialize as null, will be set after auth
   
@@ -120,6 +137,8 @@ function AppContent() {
   const [columns, setColumns] = useState<Columns>({});
   // Use SettingsContext instead of local state
   const { systemSettings, siteSettings, refreshSettings: refreshContextSettings } = useSettings();
+  // Derived flag: true only when admin has explicitly enabled project features
+  const isProjectsEnabled = siteSettings?.PROJECTS_ENABLED === '1';
   const [kanbanColumnWidth, setKanbanColumnWidth] = useState<number>(300); // Default 300px
   
   // User Status for permission refresh
@@ -1570,6 +1589,10 @@ function AppContent() {
         if (route.mainRoute === 'kanban' && route.subRoute && boards.length > 0) {
           const board = boards.find(b => b.id === route.subRoute);
           setSelectedBoard(board ? board.id : null);
+          // Sync project selection with the board being navigated to
+          if (board && board.project_group_id) {
+            setSelectedProjectId(board.project_group_id);
+          }
         }
         
       } else if (route.isBoardId && boards.length > 0) {
@@ -1671,6 +1694,7 @@ function AppContent() {
           // console.log(`📋 Loaded ${loadedMembers.length} members with includeSystem=${includeSystem}`);
           setMembers(loadedMembers);
           setBoards(loadedBoards);
+          fetchProjects();
           setAvailablePriorities(loadedPriorities || []);
           setAvailableTags(loadedTags || []);
           setAvailableSprints(loadedSprints || []);
@@ -1836,6 +1860,7 @@ function AppContent() {
     try {
       const loadedBoards = await getBoards();
       setBoards(loadedBoards);
+      fetchProjects();
       
       if (loadedBoards.length > 0) {
         // Check if the selected board still exists
@@ -1890,7 +1915,93 @@ function AppContent() {
 
 
 
+  // ─── Project handlers ───────────────────────────────────────────────────────
+
+  const fetchProjects = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch('/api/projects', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch projects:', e);
+    }
+  };
+
+  const handleCreateProject = async (title: string, color: string): Promise<Project | void> => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, color })
+      });
+      if (res.ok) {
+        const created = await res.json();
+        await fetchProjects();
+        return created as Project;
+      }
+    } catch (e) {
+      console.error('Failed to create project:', e);
+    }
+  };
+
+  const handleUpdateProject = async (id: string, title: string, color: string) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`/api/projects/${id}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, color })
+      });
+      if (res.ok) await fetchProjects();
+    } catch (e) {
+      console.error('Failed to update project:', e);
+    }
+  };
+
+  const handleDeleteProject = async (id: string) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      await fetch(`/api/projects/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      await fetchProjects();
+      await refreshBoardData();
+      if (selectedProjectId === id) setSelectedProjectId(null);
+    } catch (e) {
+      console.error('Failed to delete project:', e);
+    }
+  };
+
+  const handleAssignBoardToProject = async (boardId: string, projectId: string | null) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      await fetch(`/api/projects/boards/${boardId}/project`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_group_id: projectId })
+      });
+      await refreshBoardData();
+    } catch (e) {
+      console.error('Failed to assign board to project:', e);
+    }
+  };
+
+  // ─── End project handlers ────────────────────────────────────────────────────
+
   const handleAddBoard = async () => {
+    // Show modal instead of auto-creating
+    setShowNewBoardModal(true);
+  };
+
+  const handleAddBoardWithProject = async (boardTitle: string, projectGroupId: string | null) => {
+    setShowNewBoardModal(false);
     try {
       // Pause polling to prevent race conditions
       setBoardCreationPause(true);
@@ -1898,35 +2009,23 @@ function AppContent() {
       const boardId = generateUUID();
       const newBoard: Board = {
         id: boardId,
-        title: generateUniqueBoardName(boards),
-        columns: {}
+        title: boardTitle || generateUniqueBoardName(boards),
+        columns: {},
+        project_group_id: projectGroupId
       };
 
       // Create the board first
-      await createBoard(newBoard);
+      await createBoard({ ...newBoard, project_group_id: projectGroupId });
 
-      // Create default columns for the new board
-      const columnPromises = DEFAULT_COLUMNS.map(async (col, index) => {
-        const column: Column = {
-          id: `${col.id}-${boardId}`,
-          title: col.title,
-          tasks: [],
-          boardId: boardId,
-          position: index
-        };
-        return createColumn(column);
-      });
+      // Default columns are created server-side (see server/routes/boards.js)
 
-      await Promise.all(columnPromises);
+      // Set the new board as selected BEFORE refreshing so refreshBoardData loads its columns
+      setSelectedBoard(boardId);
+      window.location.hash = boardId;
 
       // Refresh board data to get the complete structure
       await refreshBoardData();
-      
-
-      
-      // Set the new board as selected and update URL
-      setSelectedBoard(boardId);
-      window.location.hash = boardId;
+      await fetchProjects();
       
       await fetchQueryLogs();
       
@@ -2352,6 +2451,77 @@ function AppContent() {
         await updateTask(task);
         await fetchQueryLogs();
       });
+
+      // --- Auto-shift children when dueDate changes ---
+      const previousTask = Object.values(previousColumns)
+        .flatMap(col => col.tasks)
+        .find(t => t.id === task.id);
+
+      if (previousTask && previousTask.dueDate !== task.dueDate && task.dueDate) {
+        const prevEnd = new Date(previousTask.dueDate);
+        const newEnd = new Date(task.dueDate);
+        prevEnd.setHours(0, 0, 0, 0);
+        newEnd.setHours(0, 0, 0, 0);
+        const daysDelta = Math.round((newEnd.getTime() - prevEnd.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysDelta !== 0) {
+          const collectChildren = (parentId: string, visited = new Set<string>()): string[] => {
+            if (visited.has(parentId)) return [];
+            visited.add(parentId);
+            const directChildren = taskLinking.boardRelationships
+              .filter((rel: any) => rel.relationship === 'parent' && rel.task_id === parentId)
+              .map((rel: any) => rel.to_task_id);
+            return [
+              ...directChildren,
+              ...directChildren.flatMap(childId => collectChildren(childId, visited))
+            ];
+          };
+
+          const childIds = collectChildren(task.id);
+
+          if (childIds.length > 0) {
+            const shiftDate = (dateStr: string | null | undefined, delta: number): string => {
+              if (!dateStr) return dateStr || '';
+              const d = new Date(dateStr);
+              d.setDate(d.getDate() + delta);
+              return d.toISOString().split('T')[0];
+            };
+
+            for (const childId of childIds) {
+              const childTask = Object.values(columns)
+                .flatMap(col => col.tasks)
+                .find(t => t.id === childId);
+              if (!childTask) continue;
+
+              const newStartDate = shiftDate(childTask.startDate, daysDelta);
+              const newDueDate = shiftDate(childTask.dueDate, daysDelta);
+              const updatedChild = { ...childTask, startDate: newStartDate, dueDate: newDueDate };
+
+              setColumns(prev => {
+                const col = prev[childTask.columnId];
+                if (!col) return prev;
+                return {
+                  ...prev,
+                  [childTask.columnId]: {
+                    ...col,
+                    tasks: col.tasks.map(t => t.id === childId ? updatedChild : t)
+                  }
+                };
+              });
+
+              await updateTask(updatedChild);
+            }
+
+            const direction = daysDelta > 0 ? 'forward' : 'backward';
+            const absDays = Math.abs(daysDelta);
+            toast.info(
+              'Dependent tasks shifted',
+              `${childIds.length} dependent task${childIds.length > 1 ? 's' : ''} shifted ${direction} by ${absDays} day${absDays > 1 ? 's' : ''}`
+            );
+          }
+        }
+      }
+      // --- End auto-shift ---
     } catch (error: any) {
       console.error('❌ [App] Failed to update task:', error);
       
@@ -3515,6 +3685,15 @@ function AppContent() {
         currentFilterView={taskFilters.currentFilterView}
         sharedFilterViews={taskFilters.sharedFilterViews}
         onFilterViewChange={taskFilters.handleFilterViewChange}
+        projects={isProjectsEnabled ? projects : []}
+        selectedProjectId={isProjectsEnabled ? selectedProjectId : null}
+        sidebarOpen={isProjectsEnabled ? sidebarOpen : false}
+        onSelectProject={isProjectsEnabled ? setSelectedProjectId : undefined}
+        onSidebarToggle={isProjectsEnabled ? () => setSidebarOpen(v => !v) : undefined}
+        onCreateProject={isProjectsEnabled ? handleCreateProject : undefined}
+        onUpdateProject={isProjectsEnabled ? handleUpdateProject : undefined}
+        onDeleteProject={isProjectsEnabled ? handleDeleteProject : undefined}
+        onAssignBoardToProject={isProjectsEnabled ? handleAssignBoardToProject : undefined}
                     onSelectBoard={handleBoardSelection}
                     onAddBoard={handleAddBoard}
                     onEditBoard={handleEditBoard}
@@ -3612,6 +3791,7 @@ function AppContent() {
           }}
           siteSettings={siteSettings}
           boards={boards}
+          projects={isProjectsEnabled ? projects : []}
         />
       </Suspense>
 
@@ -3671,6 +3851,17 @@ function AppContent() {
       />
       </div>
       
+      {/* New Board Modal */}
+      {showNewBoardModal && (
+        <NewBoardModal
+          projects={isProjectsEnabled ? projects : []}
+          defaultProjectId={isProjectsEnabled ? selectedProjectId : null}
+          defaultBoardName={generateUniqueBoardName(boards)}
+          onSubmit={handleAddBoardWithProject}
+          onCreateProject={handleCreateProject}
+          onClose={() => setShowNewBoardModal(false)}
+        />
+      )}
       {/* Toast Notifications */}
       <ToastContainer />
 

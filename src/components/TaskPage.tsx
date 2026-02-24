@@ -4,7 +4,7 @@ import { useTaskDetails } from '../hooks/useTaskDetails';
 import { Task, TeamMember, CurrentUser, Attachment } from '../types';
 import { ArrowLeft, Save, Clock, User, Calendar, AlertCircle, Tag, Users, Paperclip, Edit2, X, ChevronDown, ChevronUp, GitBranch } from 'lucide-react';
 import { parseTaskRoute } from '../utils/routingUtils';
-import { getTaskById, getMembers, getBoards, addWatcherToTask, removeWatcherFromTask, addCollaboratorToTask, removeCollaboratorFromTask, addTagToTask, removeTagFromTask, deleteComment, updateComment, fetchTaskAttachments, deleteAttachment, fetchCommentAttachments, getTaskRelationships, getAvailableTasksForRelationship, addTaskRelationship, removeTaskRelationship } from '../api';
+import { getTaskById, getMembers, getBoards, getBoardColumns, moveTaskToBoard, addWatcherToTask, removeWatcherFromTask, addCollaboratorToTask, removeCollaboratorFromTask, addTagToTask, removeTagFromTask, deleteComment, updateComment, fetchTaskAttachments, deleteAttachment, fetchCommentAttachments, getTaskRelationships, getAvailableTasksForRelationship, addTaskRelationship, removeTaskRelationship } from '../api';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { generateTaskUrl } from '../utils/routingUtils';
 import { loadUserPreferences, updateUserPreference } from '../utils/userPreferences';
@@ -47,6 +47,22 @@ export default function TaskPage({
   const { t } = useTranslation('tasks');
   const [task, setTask] = useState<Task | null>(null);
   const [boards, setBoards] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [boardColumns, setBoardColumns] = useState<{id: string, title: string}[]>([]);
+  const [showBoardSelector, setShowBoardSelector] = useState(false);
+  const [movingToBoard, setMovingToBoard] = useState(false);
+
+  // Close board selector on outside click
+  useEffect(() => {
+    if (!showBoardSelector) return;
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as Element).closest('.board-selector-container')) {
+        setShowBoardSelector(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showBoardSelector]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -150,9 +166,10 @@ export default function TaskPage({
         
         // Load task and boards in parallel (members come from props)
         console.log('📡 [TaskPage] Making API calls...');
-        const [taskData, boardsData] = await Promise.all([
+        const [taskData, boardsData, projectsRes] = await Promise.all([
           getTaskById(taskId),
-          getBoards()
+          getBoards(),
+          fetch('/api/projects', { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }).then(r => r.json()).catch(() => [])
         ]);
 
         console.log('📥 [TaskPage] API responses received:');
@@ -179,6 +196,14 @@ export default function TaskPage({
         console.log('✅ [TaskPage] Setting state with loaded data');
         setTask(taskData);
         setBoards(boardsData);
+        setProjects(Array.isArray(projectsRes) ? projectsRes : []);
+        // Load columns for the task's current board
+        if (taskData?.boardId) {
+          try {
+            const cols = await getBoardColumns(taskData.boardId);
+            setBoardColumns(cols);
+          } catch (e) { /* non-fatal */ }
+        }
       } catch (error) {
         console.error('❌ [TaskPage] Error loading task page data:', error);
         console.error('❌ [TaskPage] Error details:', {
@@ -760,6 +785,26 @@ export default function TaskPage({
       }
     };
   }, []);
+
+  // Move task to a different board (and optionally column)
+  const handleMoveToBoard = async (targetBoardId: string) => {
+    if (!task || targetBoardId === task.boardId) return;
+    try {
+      setMovingToBoard(true);
+      await moveTaskToBoard(task.id, targetBoardId);
+      // Reload columns for new board
+      const cols = await getBoardColumns(targetBoardId);
+      setBoardColumns(cols);
+      // Reload task to get updated boardId/columnId
+      const updated = await getTaskById(task.id);
+      setTask(updated);
+      setShowBoardSelector(false);
+    } catch (e) {
+      console.error('Failed to move task:', e);
+    } finally {
+      setMovingToBoard(false);
+    }
+  };
 
   const handleBack = () => {
     // Navigate back to the kanban board
@@ -1717,10 +1762,85 @@ export default function TaskPage({
                   <span className="text-gray-600">{t('taskPage.taskId')}:</span>
                   <span className="font-mono text-gray-900">{taskId}</span>
                 </div>
-                {getProjectIdentifier() && (
+                {/* Board / Project selector — only in extended mode */}
+                {projects.length > 0 && (
+                <div className="flex justify-between items-start">
+                  <span className="text-gray-600 mt-1">Board:</span>
+                  <div className="relative text-right board-selector-container">
+                    <button
+                      onClick={() => setShowBoardSelector(v => !v)}
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 ml-auto"
+                    >
+                      {boards.find(b => b.id === task?.boardId)?.title || '—'}
+                      <ChevronDown className="h-3 w-3" />
+                    </button>
+                    {showBoardSelector && (
+                      <div className="absolute right-0 top-6 z-50 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 max-h-64 overflow-y-auto">
+                        <p className="px-3 py-1 text-xs text-gray-400 font-medium uppercase">Move to board</p>
+                        {(() => {
+                          const ungrouped = boards.filter(b => !b.project_group_id);
+                          const grouped = projects.map(p => ({
+                            project: p,
+                            boards: boards.filter(b => b.project_group_id === p.id)
+                          })).filter(g => g.boards.length > 0);
+
+                          const renderBoard = (b: any) => {
+                            const isCurrent = b.id === task?.boardId;
+                            return (
+                              <button
+                                key={b.id}
+                                disabled={isCurrent || movingToBoard}
+                                onClick={() => handleMoveToBoard(b.id)}
+                                className={`w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 ${
+                                  isCurrent
+                                    ? 'text-blue-600 font-medium bg-blue-50 dark:bg-blue-900/20'
+                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                }`}
+                              >
+                                {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />}
+                                <span className="truncate">{b.title}</span>
+                              </button>
+                            );
+                          };
+
+                          return (
+                            <>
+                              {grouped.map(g => (
+                                <div key={g.project.id}>
+                                  <div className="flex items-center gap-1.5 px-3 py-1 mt-1">
+                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: g.project.color }} />
+                                    <span className="text-xs font-medium text-gray-400 uppercase tracking-wide truncate">{g.project.title}</span>
+                                  </div>
+                                  {g.boards.map(renderBoard)}
+                                </div>
+                              ))}
+                              {ungrouped.length > 0 && (
+                                <div>
+                                  {grouped.length > 0 && <div className="px-3 py-1 mt-1 text-xs font-medium text-gray-400 uppercase tracking-wide">Ungrouped</div>}
+                                  {ungrouped.map(renderBoard)}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                )}
+                {getProjectIdentifier() && projects.length > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-gray-600">{t('taskPage.project')}:</span>
+                    <span className="text-gray-600">Project:</span>
                     <span className="font-mono text-gray-900">{getProjectIdentifier()}</span>
+                  </div>
+                )}
+                {/* Current column info — only in extended mode */}
+                {boardColumns.length > 0 && projects.length > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Column:</span>
+                    <span className="text-gray-900 text-sm">
+                      {boardColumns.find(c => c.id === task?.columnId)?.title || '—'}
+                    </span>
                   </div>
                 )}
                 <div className="flex justify-between">
