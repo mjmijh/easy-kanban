@@ -283,6 +283,12 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
   availableSprints = []
 }: KanbanPageProps) => {
   // Column filtering logic - memoized to prevent unnecessary re-renders
+  // Filter boards by selected project
+  const filteredBoards = useMemo(() => {
+    if (!selectedProjectId) return boards; // 'All Boards' selected
+    return boards.filter(b => b.project_group_id === selectedProjectId);
+  }, [boards, selectedProjectId]);
+
   const visibleColumnsForCurrentBoard = useMemo(() => {
     if (!selectedBoard) return [];
     // If there's saved visibility preference, use it
@@ -634,7 +640,7 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
 
       {/* Board Tabs */}
       <BoardTabs
-        boards={boards}
+        boards={filteredBoards}
         selectedBoard={selectedBoard}
         onSelectBoard={onSelectBoard}
         onAddBoard={onAddBoard}
@@ -697,7 +703,7 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
                 onMoveTaskToColumn={onMoveTaskToColumn}
                 animateCopiedTaskId={animateCopiedTaskId}
                 onScrollControlsChange={setListViewScrollControls}
-                boards={boards}
+                boards={filteredBoards}
                 siteSettings={siteSettings}
                 currentUser={currentUser}
                 onAddTask={onAddTask}
