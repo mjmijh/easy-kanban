@@ -44,6 +44,7 @@ interface ListViewProps {
   siteSettings?: { [key: string]: string }; // Site settings for badge system
   currentUser?: CurrentUser | null; // Current user for admin checks
   onAddTask?: (columnId: string) => Promise<void>;
+  blockedTaskIds?: Set<string>;
 }
 
 type SortField = 'sprint' | 'ticket' | 'title' | 'priority' | 'assignee' | 'startDate' | 'dueDate' | 'createdAt' | 'column' | 'tags' | 'comments';
@@ -94,6 +95,7 @@ export default function ListView({
   siteSettings,
   currentUser,
   onAddTask,
+  blockedTaskIds,
 }: ListViewProps) {
   const { t } = useTranslation(['tasks', 'common']);
   
@@ -1647,6 +1649,27 @@ export default function ListView({
                               <div className="absolute top-0.5 right-0.5">
                                 <div className="bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-lg opacity-95 transform -rotate-12">
                                   {t('taskCard.late')}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* "BLOCKED" stamp */}
+                          {blockedTaskIds?.has(task.id) && !isColumnFinished(task.columnId) && !isColumnArchived(task.columnId) && (
+                            <div className="absolute inset-0 pointer-events-none z-30">
+                              <div className="absolute top-0 right-0 w-full h-full">
+                                <div 
+                                  className="absolute top-0 right-0 w-0 h-0"
+                                  style={{
+                                    borderLeft: '60px solid transparent',
+                                    borderBottom: '100% solid rgba(249, 115, 22, 0.2)',
+                                    transform: 'translateX(0)'
+                                  }}
+                                />
+                              </div>
+                              <div className="absolute top-0.5 right-0.5">
+                                <div className="bg-orange-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-lg opacity-95 transform -rotate-12">
+                                  BLOCKED
                                 </div>
                               </div>
                             </div>

@@ -1127,7 +1127,9 @@ const GanttViewV2 = ({
           priorityName: priorityName,
           columnId: task.columnId,
           columnPosition: column.position || 0,
-          taskPosition: task.position || 0
+          taskPosition: task.position || 0,
+          isColumnFinished: column.is_finished || false,
+          isColumnArchived: column.is_archived || false
         };
         
         tasks.push(ganttTask);
@@ -2127,6 +2129,7 @@ const GanttViewV2 = ({
             onRemoveTask={onRemoveTask}
             highlightedTaskId={highlightedTaskId}
             siteSettings={siteSettings}
+            relationships={[...relationships, ...localRelationships]}
           />
           
           {/* Task drag preview */}

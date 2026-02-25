@@ -294,6 +294,37 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
     return boards.filter(b => b.project_group_id === selectedProjectId);
   }, [boards, selectedProjectId, selectedBoard]);
 
+  // Compute blocked task IDs based on parent relationships
+  const blockedTaskIds = useMemo(() => {
+    const blocked = new Set<string>();
+    if (!boardRelationships || boardRelationships.length === 0) return blocked;
+    const allTasks: any[] = [];
+    Object.values(columns).forEach((col: any) => {
+      (col.tasks || []).forEach((t: any) => allTasks.push({ ...t, columnIsFinished: col.is_finished, columnIsArchived: col.is_archived }));
+    });
+    allTasks.forEach(task => {
+      const parentRels = boardRelationships.filter(
+        (rel: any) => rel.relationship === 'parent' && rel.to_task_id === task.id
+      );
+      if (parentRels.length === 0) return;
+      const isBlocked = parentRels.some((rel: any) => {
+        const parentTask = allTasks.find((t: any) => t.id === rel.task_id);
+        if (!parentTask) return false;
+        if (parentTask.columnIsFinished || parentTask.columnIsArchived) return false;
+        // If no dates, blocked if parent is not finished
+        if (!task.startDate || !parentTask.dueDate) return true;
+        const childStart = new Date(task.startDate);
+        childStart.setHours(0, 0, 0, 0);
+        const parentEnd = new Date(parentTask.dueDate);
+        parentEnd.setHours(0, 0, 0, 0);
+        return childStart <= parentEnd;
+      });
+      if (isBlocked) blocked.add(task.id);
+    });
+    return blocked;
+  }, [boardRelationships, columns]);
+
+
   const visibleColumnsForCurrentBoard = useMemo(() => {
     if (!selectedBoard) return [];
     // If there's saved visibility preference, use it
@@ -712,6 +743,7 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
                 siteSettings={siteSettings}
                 currentUser={currentUser}
                 onAddTask={onAddTask}
+                blockedTaskIds={blockedTaskIds}
               />
             </div>
           ) : viewMode === 'gantt' ? (
@@ -731,6 +763,7 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
                 members={members}
                 onRefreshData={onRefreshBoardData}
                 relationships={boardRelationships}
+                blockedTaskIds={blockedTaskIds}
                 onCopyTask={onCopyTask}
                 onRemoveTask={onRemoveTask}
                 siteSettings={siteSettings}
@@ -847,6 +880,7 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
                             onLinkToolHover={onLinkToolHover}
                             onLinkToolHoverEnd={onLinkToolHoverEnd}
                             getTaskRelationshipType={getTaskRelationshipType}
+                            blockedTaskIds={blockedTaskIds}
                             
                             // Network status
                             isOnline={isOnline}
@@ -922,6 +956,7 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
                       onLinkToolHover={onLinkToolHover}
                       onLinkToolHoverEnd={onLinkToolHoverEnd}
                       getTaskRelationshipType={getTaskRelationshipType}
+                      blockedTaskIds={blockedTaskIds}
                       
                       // Network status
                       isOnline={isOnline}
