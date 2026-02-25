@@ -43,6 +43,8 @@ interface ListViewProps {
   boards?: Board[]; // To get project identifier from board
   siteSettings?: { [key: string]: string }; // Site settings for badge system
   currentUser?: CurrentUser | null; // Current user for admin checks
+  onAddTask?: (columnId: string) => Promise<void>;
+  blockedTaskIds?: Set<string>;
 }
 
 type SortField = 'sprint' | 'ticket' | 'title' | 'priority' | 'assignee' | 'startDate' | 'dueDate' | 'createdAt' | 'column' | 'tags' | 'comments';
@@ -91,7 +93,9 @@ export default function ListView({
   onScrollControlsChange,
   boards,
   siteSettings,
-  currentUser
+  currentUser,
+  onAddTask,
+  blockedTaskIds,
 }: ListViewProps) {
   const { t } = useTranslation(['tasks', 'common']);
   
@@ -1649,6 +1653,27 @@ export default function ListView({
                               </div>
                             </div>
                           )}
+
+                          {/* "BLOCKED" stamp */}
+                          {blockedTaskIds?.has(task.id) && !isColumnFinished(task.columnId) && !isColumnArchived(task.columnId) && (
+                            <div className="absolute inset-0 pointer-events-none z-30">
+                              <div className="absolute top-0 right-0 w-full h-full">
+                                <div 
+                                  className="absolute top-0 right-0 w-0 h-0"
+                                  style={{
+                                    borderLeft: '60px solid transparent',
+                                    borderBottom: '100% solid rgba(249, 115, 22, 0.2)',
+                                    transform: 'translateX(0)'
+                                  }}
+                                />
+                              </div>
+                              <div className="absolute top-0.5 right-0.5">
+                                <div className="bg-orange-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-lg opacity-95 transform -rotate-12">
+                                  BLOCKED
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                       {column.key === 'column' && (
@@ -1828,6 +1853,21 @@ export default function ListView({
             )}
           </tbody>
         </table>
+        {/* Add task row */}
+        {onAddTask && (
+          <button
+            onClick={() => {
+              const cols = Object.values(filteredColumns)
+                .filter((c: any) => !c.is_finished && !c.is_archived)
+                .sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
+              if (cols.length > 0) onAddTask((cols[0] as any).id);
+            }}
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-t border-gray-200 dark:border-gray-700"
+          >
+            <span className="text-lg leading-none">+</span>
+            <span>Add task</span>
+          </button>
+        )}
         </div>
 
       {/* Click outside to close column menu */}

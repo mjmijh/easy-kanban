@@ -19,6 +19,7 @@ import SearchInterface from '../SearchInterface';
 import KanbanColumn from '../Column';
 import TaskCard from '../TaskCard';
 import BoardTabs from '../BoardTabs';
+import ProjectSidebar from '../ProjectSidebar';
 import LoadingSpinner from '../LoadingSpinner';
 import ListView from '../ListView';
 import ColumnResizeHandle from '../ColumnResizeHandle';
@@ -59,6 +60,16 @@ interface KanbanPageProps {
   sensors: any;
   collisionDetection: any;
   siteSettings: { [key: string]: string };
+  // Project props
+  projects?: any[];
+  selectedProjectId?: string | null;
+  sidebarOpen?: boolean;
+  onSelectProject?: (id: string | null) => void;
+  onSidebarToggle?: () => void;
+  onCreateProject?: (title: string, color: string) => Promise<void>;
+  onUpdateProject?: (id: string, title: string, color: string) => Promise<void>;
+  onDeleteProject?: (id: string) => Promise<void>;
+  onAssignBoardToProject?: (boardId: string, projectId: string | null) => Promise<void>;
   
   // Column filtering props
   boardColumnVisibility: {[boardId: string]: string[]};
@@ -234,6 +245,15 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
   onSelectTask,
   onTaskDropOnBoard,
   siteSettings,
+  projects = [],
+  selectedProjectId = null,
+  sidebarOpen = false,
+  onSelectProject,
+  onSidebarToggle,
+  onCreateProject,
+  onUpdateProject,
+  onDeleteProject,
+  onAssignBoardToProject,
   boardColumnVisibility,
   onBoardColumnVisibilityChange,
   
@@ -263,6 +283,47 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
   availableSprints = []
 }: KanbanPageProps) => {
   // Column filtering logic - memoized to prevent unnecessary re-renders
+  // Filter boards by selected project
+  const filteredBoards = useMemo(() => {
+    if (!selectedProjectId) return boards; // 'All Boards' selected
+    // Show boards of selected project; if selected board is ungrouped, show only it
+    const selectedBoardObj = boards.find(b => b.id === selectedBoard);
+    if (selectedBoardObj && !selectedBoardObj.project_group_id) {
+      return [selectedBoardObj]; // ungrouped board selected — show only it
+    }
+    return boards.filter(b => b.project_group_id === selectedProjectId);
+  }, [boards, selectedProjectId, selectedBoard]);
+
+  // Compute blocked task IDs based on parent relationships
+  const blockedTaskIds = useMemo(() => {
+    const blocked = new Set<string>();
+    if (!boardRelationships || boardRelationships.length === 0) return blocked;
+    const allTasks: any[] = [];
+    Object.values(columns).forEach((col: any) => {
+      (col.tasks || []).forEach((t: any) => allTasks.push({ ...t, columnIsFinished: col.is_finished, columnIsArchived: col.is_archived }));
+    });
+    allTasks.forEach(task => {
+      const parentRels = boardRelationships.filter(
+        (rel: any) => rel.relationship === 'parent' && rel.to_task_id === task.id
+      );
+      if (parentRels.length === 0) return;
+      const isBlocked = parentRels.some((rel: any) => {
+        const parentTask = allTasks.find((t: any) => t.id === rel.task_id);
+        if (!parentTask) return false;
+        if (parentTask.columnIsFinished || parentTask.columnIsArchived) return false;
+        // If no dates, blocked if parent is not finished
+        if (!task.startDate || !parentTask.dueDate) return true;
+        const childStart = new Date(task.startDate);
+        childStart.setHours(0, 0, 0, 0);
+        const parentEnd = new Date(parentTask.dueDate);
+        parentEnd.setHours(0, 0, 0, 0);
+        return childStart <= parentEnd;
+      });
+      if (isBlocked) blocked.add(task.id);
+    });
+    return blocked;
+  }, [boardRelationships, columns]);
+
   const visibleColumnsForCurrentBoard = useMemo(() => {
     if (!selectedBoard) return [];
     // If there's saved visibility preference, use it
@@ -536,6 +597,26 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
 
   return (
     <>
+      {/* Project Sidebar + main content */}
+      <div className="flex gap-4">
+        {onSidebarToggle && (
+          <ProjectSidebar
+            projects={projects}
+            boards={boards}
+            selectedBoard={selectedBoard}
+            selectedProjectId={selectedProjectId ?? null}
+            isOpen={sidebarOpen}
+            isAdmin={currentUser?.roles?.includes('admin') ?? false}
+            onSelectProject={onSelectProject ?? (() => {})}
+            onToggle={onSidebarToggle ?? (() => {})}
+            onSelectBoard={onSelectBoard}
+            onCreateProject={onCreateProject ?? (async () => {})}
+            onUpdateProject={onUpdateProject ?? (async () => {})}
+            onDeleteProject={onDeleteProject ?? (async () => {})}
+            onAssignBoardToProject={onAssignBoardToProject ?? (async () => {})}
+          />
+        )}
+        <div className="flex-1 min-w-0">
       {/* Tools, Team Members, and Board Metrics in a flex container */}
       <div className="flex gap-4 mb-4">
         <Tools 
@@ -594,7 +675,7 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
 
       {/* Board Tabs */}
       <BoardTabs
-        boards={boards}
+        boards={filteredBoards}
         selectedBoard={selectedBoard}
         onSelectBoard={onSelectBoard}
         onAddBoard={onAddBoard}
@@ -657,9 +738,11 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
                 onMoveTaskToColumn={onMoveTaskToColumn}
                 animateCopiedTaskId={animateCopiedTaskId}
                 onScrollControlsChange={setListViewScrollControls}
-                boards={boards}
+                boards={filteredBoards}
                 siteSettings={siteSettings}
                 currentUser={currentUser}
+                onAddTask={onAddTask}
+                blockedTaskIds={blockedTaskIds}
               />
             </div>
           ) : viewMode === 'gantt' ? (
@@ -679,6 +762,7 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
                 members={members}
                 onRefreshData={onRefreshBoardData}
                 relationships={boardRelationships}
+                blockedTaskIds={blockedTaskIds}
                 onCopyTask={onCopyTask}
                 onRemoveTask={onRemoveTask}
                 siteSettings={siteSettings}
@@ -795,6 +879,7 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
                             onLinkToolHover={onLinkToolHover}
                             onLinkToolHoverEnd={onLinkToolHoverEnd}
                             getTaskRelationshipType={getTaskRelationshipType}
+                            blockedTaskIds={blockedTaskIds}
                             
                             // Network status
                             isOnline={isOnline}
@@ -870,6 +955,7 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
                       onLinkToolHover={onLinkToolHover}
                       onLinkToolHoverEnd={onLinkToolHoverEnd}
                       getTaskRelationshipType={getTaskRelationshipType}
+                      blockedTaskIds={blockedTaskIds}
                       
                       // Network status
                       isOnline={isOnline}
@@ -893,8 +979,8 @@ const KanbanPage: React.FC<KanbanPageProps> = ({
           )}
         </div>
       )}
-
-
+        </div>
+      </div>
     </>
   );
 };

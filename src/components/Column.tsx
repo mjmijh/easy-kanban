@@ -65,6 +65,7 @@ interface KanbanColumnProps {
   onLinkToolHover?: (task: Task) => void;
   onLinkToolHoverEnd?: () => void;
   getTaskRelationshipType?: (taskId: string) => 'parent' | 'child' | 'related' | null;
+  blockedTaskIds?: Set<string>;
   
   // Network status
   isOnline?: boolean;
@@ -125,6 +126,7 @@ export default function KanbanColumn({
   onLinkToolHover,
   onLinkToolHoverEnd,
   getTaskRelationshipType,
+  blockedTaskIds,
   
   // Network status
   isOnline = true, // Default to true if not provided
@@ -569,6 +571,7 @@ export default function KanbanColumn({
             onLinkToolHover={onLinkToolHover}
             onLinkToolHoverEnd={onLinkToolHoverEnd}
             getTaskRelationshipType={getTaskRelationshipType}
+            isBlocked={blockedTaskIds?.has(task.id) || false}
           />
         </div>
       );
@@ -593,7 +596,7 @@ export default function KanbanColumn({
     }
     
     return taskElements;
-  }, [filteredTasks, members, onRemoveTask, onEditTask, onCopyTask, onTaskDragStart, onTaskDragEnd, onSelectTask, draggedTask, dragPreview, column.id, column.title, isDragging, t, taskViewMode, currentUser, siteSettings, column.is_finished, column.is_archived, draggedColumn, availablePriorities, selectedTask, availableTags, onTagAdd, onTagRemove, boards, columns, selectedSprintId, availableSprints, isLinkingMode, linkingSourceTask, onStartLinking, onFinishLinking, hoveredLinkTask, onLinkToolHover, onLinkToolHoverEnd, getTaskRelationshipType]);
+  }, [filteredTasks, members, onRemoveTask, onEditTask, onCopyTask, onTaskDragStart, onTaskDragEnd, onSelectTask, draggedTask, dragPreview, column.id, column.title, isDragging, t, taskViewMode, currentUser, siteSettings, column.is_finished, column.is_archived, draggedColumn, availablePriorities, selectedTask, availableTags, onTagAdd, onTagRemove, boards, columns, selectedSprintId, availableSprints, isLinkingMode, linkingSourceTask, onStartLinking, onFinishLinking, hoveredLinkTask, onLinkToolHover, onLinkToolHoverEnd, getTaskRelationshipType, blockedTaskIds]);
 
   // Combine sortable and column droppable refs for the column container
   const setColumnRef = (node: HTMLElement | null) => {

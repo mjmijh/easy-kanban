@@ -60,6 +60,7 @@ interface TaskCardProps {
   availableTags?: Tag[];
   siteSettings?: { [key: string]: string };
   columnIsFinished?: boolean;
+  isBlocked?: boolean;
   columnIsArchived?: boolean;
   onTagAdd?: (tagId: string) => void;
   onTagRemove?: (tagId: string) => void;
@@ -106,6 +107,7 @@ const TaskCard = React.memo(function TaskCard({
   onTagRemove,
   siteSettings,
   columnIsFinished = false,
+  isBlocked = false,
   columnIsArchived = false,
   boards,
   columns,
@@ -1808,6 +1810,13 @@ const TaskCard = React.memo(function TaskCard({
             )}
             
             {/* Overdue Task Banner Overlay - positioned over priority */}
+            {isBlocked && !columnIsFinished && !columnIsArchived && (
+              <div className="absolute -top-1 -right-1 z-10">
+                <span className="bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                  BLOCKED
+                </span>
+              </div>
+            )}
             {!columnIsFinished && !columnIsArchived && isOverdue() && siteSettings?.HIGHLIGHT_OVERDUE_TASKS === 'true' && (
               <div className="absolute inset-0 pointer-events-none z-30">
                 {/* Diagonal banner background */}
@@ -2234,7 +2243,8 @@ const TaskCard = React.memo(function TaskCard({
   }
   
   // Re-render if column state changes
-  if (prevProps.columnIsFinished !== nextProps.columnIsFinished ||
+  if (prevProps.isBlocked !== nextProps.isBlocked ||
+      prevProps.columnIsFinished !== nextProps.columnIsFinished ||
       prevProps.columnIsArchived !== nextProps.columnIsArchived) {
     return false;
   }
